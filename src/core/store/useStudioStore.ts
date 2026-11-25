@@ -11,6 +11,7 @@ import type {
   PlatformTheme,
   Project,
   ReadReceiptStatus,
+  StoryElement,
   Template,
 } from '@/core/types';
 import { createDefaultTheme, createSeedProject } from '@/core/engine/seedData';
@@ -75,6 +76,7 @@ export interface StudioStore {
     text: string;
     timestampLabel?: string;
     readStatus?: ReadReceiptStatus;
+    forwardedLabel?: 'none' | 'forwarded' | 'frequently_forwarded';
     voiceDurationSeconds?: number;
     imageDataUrl?: string;
     replyToMessageId?: string;
@@ -94,6 +96,10 @@ export interface StudioStore {
 
   upsertParticipant: (participant: Participant) => void;
   deleteParticipant: (participantId: string) => void;
+  moveParticipant: (participantId: string, direction: 'up' | 'down') => void;
+  toggleGroupAdmin: (participantId: string) => void;
+  setGroupCreator: (participantId: string) => void;
+  loadTenMemberGroupDemo: () => void;
   setSelfParticipant: (participantId: string) => void;
   updateHeaderState: (patch: Partial<Conversation['headerState']>) => void;
   updateGroupMeta: (patch: Partial<NonNullable<Conversation['groupMeta']>>) => void;
@@ -103,6 +109,22 @@ export interface StudioStore {
     patch: Partial<NonNullable<Conversation['storyMeta']>['slides'][number]>
   ) => void;
   setActiveStorySlide: (index: number) => void;
+  addStorySlide: () => void;
+  deleteStorySlide: (slideIndex: number) => void;
+  addStoryElement: (slideIndex: number, element: StoryElement) => void;
+  updateStoryElement: (
+    slideIndex: number,
+    elementId: string,
+    patch: Partial<StoryElement>
+  ) => void;
+  deleteStoryElement: (slideIndex: number, elementId: string) => void;
+  duplicateStoryElement: (slideIndex: number, elementId: string) => void;
+  reorderStoryElement: (
+    slideIndex: number,
+    elementId: string,
+    direction: 'up' | 'down'
+  ) => void;
+  updateStoryMeta: (patch: Partial<NonNullable<Conversation['storyMeta']>>) => void;
   updateCallMeta: (patch: Partial<NonNullable<Conversation['callMeta']>>) => void;
 
   updateTheme: (patch: Partial<PlatformTheme>) => void;
@@ -210,7 +232,17 @@ export const useStudioStore = create<StudioStore>((set, get) => {
     initPlatform: async (platformId) => {
       const startMutationVersion = get().mutationVersion;
       const startPlatformId = get().project.platformId;
-      set({ isHydrating: true, errorMessage: null });
+      if (startPlatformId !== platformId) {
+        set({
+          project: createSeedProject(platformId),
+          isHydrating: true,
+          errorMessage: null,
+          past: [],
+          future: [],
+        });
+      } else {
+        set({ isHydrating: true, errorMessage: null });
+      }
       try {
         const stored = await loadLatestProjectForPlatform(platformId);
         const initial = stored ?? createSeedProject(platformId);
@@ -293,24 +325,24 @@ export const useStudioStore = create<StudioStore>((set, get) => {
           conversations: prev.conversations.map((c) =>
             c.id === prev.activeConversationId
               ? {
-                  ...c,
-                  platformId,
-                  mode:
-                    platformId === 'whatsapp-group-chat' || platformId === 'discord-chat'
-                      ? 'group'
-                      : 'direct',
-                  groupMeta:
-                    platformId === 'whatsapp-group-chat' || platformId === 'discord-chat'
-                      ? c.groupMeta ?? {
-                          groupName:
-                            platformId === 'discord-chat'
-                              ? '#general'
-                              : 'Group Conversation',
-                          showSenderNamesInBubbles: true,
-                          showSenderAvatarsInBubbles: true,
-                        }
-                      : undefined,
-                }
+                ...c,
+                platformId,
+                mode:
+                  platformId === 'whatsapp-group-chat' || platformId === 'discord-chat'
+                    ? 'group'
+                    : 'direct',
+                groupMeta:
+                  platformId === 'whatsapp-group-chat' || platformId === 'discord-chat'
+                    ? c.groupMeta ?? {
+                      groupName:
+                        platformId === 'discord-chat'
+                          ? '#general'
+                          : 'Group Conversation',
+                      showSenderNamesInBubbles: true,
+                      showSenderAvatarsInBubbles: true,
+                    }
+                    : undefined,
+              }
               : c
           ),
         };
@@ -462,6 +494,41 @@ export const useStudioStore = create<StudioStore>((set, get) => {
             isListened: false,
           },
         });
+      } else if (msgType === 'audio') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'audio',
+          durationSeconds: input.voiceDurationSeconds ?? 38,
+          audioMeta: {
+            trackTitle: input.docFileName || input.text || 'Audio-Track.mp3',
+            artistName: 'Voice Recording',
+          },
+        });
+      } else if (msgType === 'video_preview') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'video_preview',
+          durationSeconds: input.voiceDurationSeconds ?? 18,
+          previewDataUrl: input.imageDataUrl,
+          caption: input.text,
+        });
+      } else if (msgType === 'gif') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'gif',
+          previewDataUrl: input.imageDataUrl,
+          caption: input.text,
+          gifMeta: {
+            providerLabel: 'GIF',
+            isLooping: true,
+          },
+        });
+      } else if (msgType === 'sticker') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'sticker',
+          caption: input.text || '🎉',
+        });
       } else if (msgType === 'image') {
         attachments.push({
           id: `att_${id}`,
@@ -519,11 +586,20 @@ export const useStudioStore = create<StudioStore>((set, get) => {
         });
       }
 
+      const isSystemRow =
+        msgType === 'system' ||
+        msgType === 'date_separator' ||
+        msgType === 'unread_divider';
+
       const newMessage: Message = {
         id,
-        senderId: msgType === 'system' || msgType === 'date_separator' ? 'system' : input.senderId,
+        senderId: isSystemRow ? 'system' : input.senderId,
         type: msgType,
         text: input.text,
+        forwardedLabel:
+          !isSystemRow && input.forwardedLabel && input.forwardedLabel !== 'none'
+            ? input.forwardedLabel
+            : undefined,
         replyToMessageId: input.replyToMessageId || undefined,
         timestampLabel:
           input.timestampLabel ??
@@ -534,22 +610,22 @@ export const useStudioStore = create<StudioStore>((set, get) => {
         callEvent:
           msgType === 'call_event'
             ? {
-                media: input.callMedia ?? 'voice',
-                outcome: input.callOutcome ?? 'missed',
-                durationLabel:
-                  input.callOutcome === 'answered' ? '4 mins' : undefined,
-              }
+              media: input.callMedia ?? 'voice',
+              outcome: input.callOutcome ?? 'missed',
+              durationLabel:
+                input.callOutcome === 'answered' ? '4 mins' : undefined,
+            }
             : undefined,
         pollData:
           msgType === 'poll'
             ? {
-                question: input.text || 'Where should we meet?',
-                allowMultiple: false,
-                options: [
-                  { id: 'opt_1', label: 'Studio Downtown', voteCount: 4, votedBySelf: true },
-                  { id: 'opt_2', label: 'Coffee Bar', voteCount: 2 },
-                ],
-              }
+              question: input.text || 'Where should we meet?',
+              allowMultiple: false,
+              options: [
+                { id: 'opt_1', label: 'Studio Downtown', voteCount: 4, votedBySelf: true },
+                { id: 'opt_2', label: 'Coffee Bar', voteCount: 2 },
+              ],
+            }
             : undefined,
       };
 
@@ -695,9 +771,9 @@ export const useStudioStore = create<StudioStore>((set, get) => {
           conversations: prev.conversations.map((c) =>
             c.id === prev.activeConversationId
               ? {
-                  ...c,
-                  participantIds: c.participantIds.filter((id) => id !== participantId),
-                }
+                ...c,
+                participantIds: c.participantIds.filter((id) => id !== participantId),
+              }
               : c
           ),
         };
@@ -711,6 +787,112 @@ export const useStudioStore = create<StudioStore>((set, get) => {
           selfParticipantId: participantId,
         }))
       );
+    },
+
+    moveParticipant: (participantId, direction) => {
+      commitMutation((prev) => {
+        const idx = prev.cast.findIndex((p) => p.id === participantId);
+        if (idx === -1) return prev;
+        const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (targetIdx < 0 || targetIdx >= prev.cast.length) return prev;
+        const nextCast = [...prev.cast];
+        const [moved] = nextCast.splice(idx, 1);
+        nextCast.splice(targetIdx, 0, moved);
+        const orderedIds = nextCast.map((p) => p.id);
+        return {
+          ...prev,
+          updatedAt: new Date().toISOString(),
+          cast: nextCast,
+          conversations: prev.conversations.map((c) =>
+            c.id === prev.activeConversationId
+              ? { ...c, participantIds: orderedIds }
+              : c
+          ),
+        };
+      });
+    },
+
+    toggleGroupAdmin: (participantId) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        cast: prev.cast.map((p) =>
+          p.id === participantId
+            ? {
+              ...p,
+              isAdmin: !p.isAdmin,
+              roleLabel: !p.isAdmin ? 'Admin' : undefined,
+            }
+            : p
+        ),
+      }));
+    },
+
+    setGroupCreator: (participantId) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        cast: prev.cast.map((p) => ({
+          ...p,
+          isGroupCreator: p.id === participantId,
+          isAdmin: p.id === participantId ? true : p.isAdmin,
+          roleLabel: p.id === participantId ? 'Creator' : p.roleLabel === 'Creator' ? 'Admin' : p.roleLabel,
+        })),
+      }));
+    },
+
+    loadTenMemberGroupDemo: () => {
+      commitMutation((prev) => {
+        const demoMembers: Participant[] = [
+          { id: 'part_self', displayName: 'You', handle: '@you.studio', avatarFallbackColor: '#4F46E5', nameColorHex: '#4F46E5', verifiedBadge: 'none', isSelfDefault: true, isAdmin: true, isGroupCreator: true, roleLabel: 'Creator' },
+          { id: 'part_maya', displayName: 'Maya Lin', handle: '@maya.creative', avatarFallbackColor: '#059669', nameColorHex: '#059669', verifiedBadge: 'none', isAdmin: true, roleLabel: 'Admin' },
+          { id: 'part_daniel', displayName: 'Daniel Ortiz', handle: '@daniel.o', avatarFallbackColor: '#2563EB', nameColorHex: '#2563EB', verifiedBadge: 'none' },
+          { id: 'part_priya', displayName: 'Priya Nair', handle: '@priya.ux', avatarFallbackColor: '#D97706', nameColorHex: '#D97706', verifiedBadge: 'none' },
+          { id: 'part_lucas', displayName: 'Lucas Meyer', handle: '@lucas.m', avatarFallbackColor: '#DB2777', nameColorHex: '#DB2777', verifiedBadge: 'none' },
+          { id: 'part_hana', displayName: 'Hana Sato', handle: '@hana.film', avatarFallbackColor: '#7C3AED', nameColorHex: '#7C3AED', verifiedBadge: 'none' },
+          { id: 'part_omar', displayName: 'Omar Hassan', handle: '@omar.dev', avatarFallbackColor: '#0284C7', nameColorHex: '#0284C7', verifiedBadge: 'none' },
+          { id: 'part_chloe', displayName: 'Chloe Grant', handle: '@chloe.g', avatarFallbackColor: '#DC2626', nameColorHex: '#DC2626', verifiedBadge: 'none' },
+          { id: 'part_noah', displayName: 'Noah Brooks', handle: '@noah.audio', avatarFallbackColor: '#0D9488', nameColorHex: '#0D9488', verifiedBadge: 'none' },
+          { id: 'part_sofia', displayName: 'Sofia Costa', handle: '@sofia.art', avatarFallbackColor: '#9333EA', nameColorHex: '#9333EA', verifiedBadge: 'none' },
+        ];
+        const demoMsgs: Message[] = [
+          { id: 'g10_date', senderId: 'system', type: 'date_separator', text: 'Today', timestampLabel: '', attachments: [], reactions: [], readReceipt: { status: 'none' } },
+          { id: 'g10_sys1', senderId: 'system', type: 'system', text: 'You created group "Launch Crew 2026 🚀"', timestampLabel: '', attachments: [], reactions: [], readReceipt: { status: 'none' } },
+          { id: 'g10_sys2', senderId: 'system', type: 'system', text: 'Sofia Costa joined using this group\'s invite link', timestampLabel: '', attachments: [], reactions: [], readReceipt: { status: 'none' } },
+          { id: 'g10_m1', senderId: 'part_maya', type: 'text', text: 'Morning everyone! All 10 leads are now in the room — shoot kicks off at 3 PM.', timestampLabel: '9:10 AM', attachments: [], reactions: [{ emoji: '🔥', participantIds: ['part_daniel', 'part_priya'], count: 4 }], readReceipt: { status: 'read' } },
+          { id: 'g10_m2', senderId: 'part_daniel', type: 'text', text: 'Final deck PDF attached for anyone arriving on set early.', timestampLabel: '9:12 AM', replyToMessageId: 'g10_m1', attachments: [{ id: 'att_g10_doc', kind: 'document', fileName: 'Launch-Call-Sheet.pdf', pageCount: 6 }], reactions: [], readReceipt: { status: 'read' } },
+          { id: 'g10_m3', senderId: 'part_priya', type: 'poll', text: 'Lunch catering vote?', timestampLabel: '9:14 AM', attachments: [], reactions: [], readReceipt: { status: 'read' }, pollData: { question: 'Lunch catering vote?', allowMultiple: false, options: [{ id: 'p1', label: 'Mediterranean Bowls', voteCount: 6, votedBySelf: true }, { id: 'p2', label: 'Wood-Fired Pizza', voteCount: 4 }] } },
+          { id: 'g10_m4', senderId: 'part_lucas', type: 'text', text: '', isDeleted: true, timestampLabel: '9:16 AM', attachments: [], reactions: [], readReceipt: { status: 'read' } },
+          { id: 'g10_m5', senderId: 'part_self', type: 'text', text: 'Pinned the schedule above — see you all on Stage B!', timestampLabel: '9:18 AM', attachments: [], reactions: [{ emoji: '👍', participantIds: ['part_maya', 'part_sofia'], count: 5 }], readReceipt: { status: 'read' } },
+        ];
+        return {
+          ...prev,
+          updatedAt: new Date().toISOString(),
+          cast: demoMembers,
+          conversations: prev.conversations.map((c) =>
+            c.id === prev.activeConversationId
+              ? {
+                ...c,
+                participantIds: demoMembers.map((m) => m.id),
+                selfParticipantId: 'part_self',
+                groupMeta: {
+                  ...c.groupMeta,
+                  groupName: 'Launch Crew 2026 🚀',
+                  groupDescription: 'Official 10-member production & launch coordination group.',
+                  pinnedMessageId: 'g10_m1',
+                  showSenderNamesInBubbles: true,
+                  showSenderAvatarsInBubbles: true,
+                },
+                headerState: {
+                  ...c.headerState,
+                  statusText: 'You, Maya Lin, Daniel Ortiz, Priya Nair, +6 more',
+                },
+                messages: demoMsgs,
+              }
+              : c
+          ),
+        };
+      });
     },
 
     updateHeaderState: (patch) => {
@@ -770,17 +952,197 @@ export const useStudioStore = create<StudioStore>((set, get) => {
         updateActiveConversation(prev, (conv) =>
           conv.storyMeta
             ? {
-                ...conv,
-                storyMeta: {
-                  ...conv.storyMeta,
-                  activeSlideIndex: Math.max(
-                    0,
-                    Math.min(index, conv.storyMeta.slides.length - 1)
-                  ),
-                },
-              }
+              ...conv,
+              storyMeta: {
+                ...conv.storyMeta,
+                activeSlideIndex: Math.max(
+                  0,
+                  Math.min(index, conv.storyMeta.slides.length - 1)
+                ),
+              },
+            }
             : conv
         )
+      );
+    },
+
+    addStorySlide: () => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta) return conv;
+          const newSlide = {
+            id: `slide_${Date.now()}`,
+            backgroundCss:
+              'linear-gradient(155deg, #18181b 0%, #27272a 50%, #3f3f46 100%)',
+            headlineText: 'New Story Slide',
+            postedAtLabel: 'Just now',
+            elements: [],
+          };
+          const slides = [...conv.storyMeta.slides, newSlide];
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              slides,
+              activeSlideIndex: slides.length - 1,
+            },
+          };
+        })
+      );
+    },
+
+    deleteStorySlide: (slideIndex) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta || conv.storyMeta.slides.length <= 1) return conv;
+          const slides = conv.storyMeta.slides.filter((_, idx) => idx !== slideIndex);
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              slides,
+              activeSlideIndex: Math.max(
+                0,
+                Math.min(conv.storyMeta.activeSlideIndex, slides.length - 1)
+              ),
+            },
+          };
+        })
+      );
+    },
+
+    addStoryElement: (slideIndex, element) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta) return conv;
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              slides: conv.storyMeta.slides.map((s, idx) => {
+                if (idx !== slideIndex) return s;
+                return {
+                  ...s,
+                  elements: [...(s.elements ?? []), element],
+                };
+              }),
+            },
+          };
+        })
+      );
+    },
+
+    updateStoryElement: (slideIndex, elementId, patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta) return conv;
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              slides: conv.storyMeta.slides.map((s, idx) => {
+                if (idx !== slideIndex) return s;
+                return {
+                  ...s,
+                  elements: (s.elements ?? []).map((el) =>
+                    el.id === elementId ? { ...el, ...patch } : el
+                  ),
+                };
+              }),
+            },
+          };
+        })
+      );
+    },
+
+    deleteStoryElement: (slideIndex, elementId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta) return conv;
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              slides: conv.storyMeta.slides.map((s, idx) => {
+                if (idx !== slideIndex) return s;
+                return {
+                  ...s,
+                  elements: (s.elements ?? []).filter((el) => el.id !== elementId),
+                };
+              }),
+            },
+          };
+        })
+      );
+    },
+
+    duplicateStoryElement: (slideIndex, elementId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta) return conv;
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              slides: conv.storyMeta.slides.map((s, idx) => {
+                if (idx !== slideIndex) return s;
+                const existing = (s.elements ?? []).find((el) => el.id === elementId);
+                if (!existing) return s;
+                const duplicated: StoryElement = {
+                  ...existing,
+                  id: `el_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                  x: Math.min(85, existing.x + 5),
+                  y: Math.min(85, existing.y + 5),
+                };
+                return {
+                  ...s,
+                  elements: [...(s.elements ?? []), duplicated],
+                };
+              }),
+            },
+          };
+        })
+      );
+    },
+
+    reorderStoryElement: (slideIndex, elementId, direction) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta) return conv;
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              slides: conv.storyMeta.slides.map((s, idx) => {
+                if (idx !== slideIndex) return s;
+                const list = [...(s.elements ?? [])];
+                const i = list.findIndex((el) => el.id === elementId);
+                if (i === -1) return s;
+                const targetIdx = direction === 'up' ? i + 1 : i - 1;
+                if (targetIdx < 0 || targetIdx >= list.length) return s;
+                const temp = list[i];
+                list[i] = list[targetIdx];
+                list[targetIdx] = temp;
+                return { ...s, elements: list };
+              }),
+            },
+          };
+        })
+      );
+    },
+
+    updateStoryMeta: (patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta) return conv;
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              ...patch,
+            },
+          };
+        })
       );
     },
 
@@ -958,11 +1320,11 @@ export const useStudioStore = create<StudioStore>((set, get) => {
         conversations: prev.conversations.map((c) =>
           c.id === prev.activeConversationId
             ? {
-                ...c,
-                participantIds: newParticipants.map((p) => p.id),
-                selfParticipantId: selfPart.id,
-                messages: newMessages,
-              }
+              ...c,
+              participantIds: newParticipants.map((p) => p.id),
+              selfParticipantId: selfPart.id,
+              messages: newMessages,
+            }
             : c
         ),
       }));
@@ -1004,19 +1366,19 @@ export const useStudioStore = create<StudioStore>((set, get) => {
         const attachments: Message['attachments'] =
           m.type === 'voice_note'
             ? [
-                {
-                  id: `att_imp_${idx}`,
-                  kind: 'voice_note',
-                  durationSeconds: m.durationSeconds ?? 10,
-                  voiceNoteMeta: {
-                    waveformPeaks: [
-                      0.3, 0.7, 0.45, 0.85, 0.6, 0.35, 0.9, 0.5, 0.75, 0.4, 0.65, 0.3,
-                    ],
-                    playbackSpeed: '1x',
-                    isListened: true,
-                  },
+              {
+                id: `att_imp_${idx}`,
+                kind: 'voice_note',
+                durationSeconds: m.durationSeconds ?? 10,
+                voiceNoteMeta: {
+                  waveformPeaks: [
+                    0.3, 0.7, 0.45, 0.85, 0.6, 0.35, 0.9, 0.5, 0.75, 0.4, 0.65, 0.3,
+                  ],
+                  playbackSpeed: '1x',
+                  isListened: true,
                 },
-              ]
+              },
+            ]
             : [];
 
         return {
@@ -1037,11 +1399,11 @@ export const useStudioStore = create<StudioStore>((set, get) => {
         conversations: prev.conversations.map((c) =>
           c.id === prev.activeConversationId
             ? {
-                ...c,
-                participantIds: participants.map((p) => p.id),
-                selfParticipantId: selfPart?.id ?? c.selfParticipantId,
-                messages,
-              }
+              ...c,
+              participantIds: participants.map((p) => p.id),
+              selfParticipantId: selfPart?.id ?? c.selfParticipantId,
+              messages,
+            }
             : c
         ),
       }));

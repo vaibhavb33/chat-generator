@@ -18,6 +18,7 @@ export interface ChatHeaderProps {
   leftSlot?: React.ReactNode;
   rightSlot?: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export function ChatHeader({
@@ -32,9 +33,10 @@ export function ChatHeader({
   leftSlot,
   rightSlot,
   className,
+  style,
 }: ChatHeaderProps) {
   return (
-    <div className={cn('select-none', className)}>
+    <div className={cn('select-none', className)} style={style}>
       <PhoneStatusBar
         statusBar={theme.statusBar}
         osVariant={theme.osVariant}

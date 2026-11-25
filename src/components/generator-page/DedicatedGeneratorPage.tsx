@@ -1,68 +1,23 @@
-import React from 'react';
-import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
-import {
-  GENERATOR_MANIFESTS,
-  GENERATOR_MAP,
-  getGeneratorBySlug,
-} from '@/core/registry/generators';
+import { GENERATOR_MAP } from '@/core/registry/generators';
 import { GENERATOR_SEO_CONTENT } from '@/content/generatorSeoContent';
-import { SITE_BASE_URL, buildHreflangAlternates } from '@/core/i18n/locales';
+import { SITE_BASE_URL } from '@/core/i18n/locales';
+import { SiteHeader } from '@/components/layout/SiteHeader';
 import { StudioWorkspace } from '@/components/studio/StudioWorkspace';
 import { FaqAccordion } from '@/components/homepage/FaqAccordion';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { GeneratorCard } from '@/components/directory/GeneratorCard';
 import { Badge } from '@/components/ui/input';
 
-export function generateStaticParams() {
-  return GENERATOR_MANIFESTS.map((m) => ({ slug: m.slug }));
-}
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
-  const { slug } = await params;
-  const manifest = getGeneratorBySlug(slug);
-  if (!manifest) return {};
-  const path = `/generators/${manifest.slug}`;
-  return {
-    title: manifest.seoTitle,
-    description: manifest.seoDescription,
-    alternates: {
-      canonical: path,
-      languages: buildHreflangAlternates(path),
-    },
-    openGraph: {
-      title: manifest.seoTitle,
-      description: manifest.seoDescription,
-      url: `${SITE_BASE_URL}${path}`,
-      type: 'website',
-      siteName: 'ChatForge',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: manifest.seoTitle,
-      description: manifest.seoDescription,
-    },
-  };
-}
-
-export default async function GeneratorPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-  const manifest = getGeneratorBySlug(slug);
+export function DedicatedGeneratorPage({ platformId }: { platformId: string }) {
+  const manifest = GENERATOR_MAP[platformId];
   if (!manifest) {
-    notFound();
+    throw new Error(`Unknown generator platformId: ${platformId}`);
   }
 
   const seo = GENERATOR_SEO_CONTENT[manifest.slug];
-  const pageUrl = `${SITE_BASE_URL}/generators/${manifest.slug}`;
+  const pageUrl = `${SITE_BASE_URL}${manifest.routePath}`;
 
   const webAppJsonLd = {
     '@context': 'https://schema.org',
@@ -103,7 +58,7 @@ export default async function GeneratorPage({
       {
         '@type': 'ListItem',
         position: 2,
-        name: 'Generators',
+        name: 'All Generators',
         item: `${SITE_BASE_URL}/generators`,
       },
       { '@type': 'ListItem', position: 3, name: manifest.name, item: pageUrl },
@@ -129,11 +84,18 @@ export default async function GeneratorPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
-      {/* Interactive Studio Workspace */}
-      <StudioWorkspace platformId={manifest.id} />
+      <SiteHeader compact sticky={false} />
+
+      {/* Interactive Platform-Specific Studio Workspace */}
+      <Suspense fallback={<main className="min-h-screen bg-slate-50 dark:bg-slate-950" />}>
+        <StudioWorkspace platformId={manifest.id} key={manifest.id} />
+      </Suspense>
 
       {/* Rich On-Page SEO Content, How-To, Examples, Features, FAQs & Related Links */}
-      <main className="border-t border-slate-200 bg-white py-14 dark:border-slate-800 dark:bg-slate-950">
+      <article
+        aria-label={`${manifest.name} guide`}
+        className="border-t border-slate-200 bg-white py-14 dark:border-slate-800 dark:bg-slate-950"
+      >
         <div className="mx-auto max-w-5xl space-y-14 px-4 sm:px-6">
           {/* Breadcrumbs + Primary H1 + Intro */}
           <section className="space-y-4">
@@ -143,7 +105,7 @@ export default async function GeneratorPage({
               </Link>{' '}
               /{' '}
               <Link href="/generators" className="hover:text-indigo-600">
-                Generators
+                All Generators
               </Link>{' '}
               /{' '}
               <span className="font-medium text-slate-900 dark:text-white">
@@ -288,7 +250,7 @@ export default async function GeneratorPage({
             .
           </section>
         </div>
-      </main>
+      </article>
 
       <SiteFooter />
     </>

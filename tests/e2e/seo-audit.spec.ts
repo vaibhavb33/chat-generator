@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 
-const GENERATOR_SLUGS = [
-  'whatsapp-chat',
-  'whatsapp-group-chat',
-  'instagram-dm',
-  'instagram-story',
-  'instagram-post',
-  'imessage',
-  'android-messages',
-  'telegram-chat',
-  'discord-chat',
-  'fake-call-screen',
+const GENERATOR_ROUTES = [
+  '/whatsapp-chat-generator',
+  '/whatsapp-group-chat-generator',
+  '/instagram-dm-generator',
+  '/instagram-story-generator',
+  '/instagram-post-generator',
+  '/imessage-generator',
+  '/android-message-generator',
+  '/telegram-chat-generator',
+  '/discord-chat-generator',
+  '/fake-call-generator',
 ];
 
 test.describe('Prompt 06: Technical SEO, Sitemaps, Schemas, Redirects & On-Page SEO', () => {
@@ -34,8 +34,8 @@ test.describe('Prompt 06: Technical SEO, Sitemaps, Schemas, Redirects & On-Page 
     const genRes = await request.get('/sitemaps/generators.xml');
     expect(genRes.status()).toBe(200);
     const genXml = await genRes.text();
-    for (const slug of GENERATOR_SLUGS) {
-      expect(genXml).toContain(`/generators/${slug}</loc>`);
+    for (const route of GENERATOR_ROUTES) {
+      expect(genXml).toContain(`${route}</loc>`);
     }
     expect(genXml).toContain('hreflang="x-default"');
   });
@@ -46,7 +46,11 @@ test.describe('Prompt 06: Technical SEO, Sitemaps, Schemas, Redirects & On-Page 
   }) => {
     const redir = await request.get('/generators/whatsapp', { maxRedirects: 0 });
     expect([301, 308]).toContain(redir.status());
-    expect(redir.headers()['location']).toBe('/generators/whatsapp-chat');
+    expect(redir.headers()['location']).toBe('/whatsapp-chat-generator');
+
+    const legacyRedir = await request.get('/generators/whatsapp-chat', { maxRedirects: 0 });
+    expect([301, 308]).toContain(legacyRedir.status());
+    expect(legacyRedir.headers()['location']).toBe('/whatsapp-chat-generator');
 
     const missing = await request.get('/generators/does-not-exist-999');
     expect(missing.status()).toBe(404);
@@ -64,8 +68,8 @@ test.describe('Prompt 06: Technical SEO, Sitemaps, Schemas, Redirects & On-Page 
     const seenTitles = new Set<string>();
     const seenDescriptions = new Set<string>();
 
-    for (const slug of GENERATOR_SLUGS) {
-      await page.goto(`/generators/${slug}`);
+    for (const route of GENERATOR_ROUTES) {
+      await page.goto(route);
 
       const title = await page.title();
       expect(title.length).toBeGreaterThan(20);
@@ -82,7 +86,7 @@ test.describe('Prompt 06: Technical SEO, Sitemaps, Schemas, Redirects & On-Page 
       const canonical = await page
         .locator('link[rel="canonical"]')
         .getAttribute('href');
-      expect(canonical).toContain(`/generators/${slug}`);
+      expect(canonical).toContain(route);
 
       const ogTitle = await page
         .locator('meta[property="og:title"]')

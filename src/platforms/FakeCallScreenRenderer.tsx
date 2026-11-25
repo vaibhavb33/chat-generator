@@ -57,6 +57,7 @@ export function FakeCallScreenRenderer({
 
   return (
     <div
+      data-testid="renderer-fake-call-screen"
       className={cn(
         'flex min-h-[590px] flex-col justify-between bg-gradient-to-b text-white',
         bgGradient

@@ -21,7 +21,7 @@ export default function OfflinePage() {
         </p>
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <Button asChild variant="gradient" size="sm">
-            <Link href="/generators/whatsapp-chat">Open Offline Editor</Link>
+            <Link href="/whatsapp-chat-generator">Open Offline Editor</Link>
           </Button>
           <Button
             type="button"

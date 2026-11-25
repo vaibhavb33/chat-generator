@@ -38,7 +38,7 @@ export function SiteFooter() {
               {messagingTools.map((tool) => (
                 <li key={tool.id}>
                   <Link
-                    href={`/generators/${tool.slug}`}
+                    href={tool.routePath}
                     className="text-slate-600 transition-colors hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400"
                   >
                     {tool.name}
@@ -56,7 +56,7 @@ export function SiteFooter() {
               {otherTools.map((tool) => (
                 <li key={tool.id}>
                   <Link
-                    href={`/generators/${tool.slug}`}
+                    href={tool.routePath}
                     className="text-slate-600 transition-colors hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400"
                   >
                     {tool.name}
@@ -79,6 +79,16 @@ export function SiteFooter() {
               Platform & Ethics
             </h3>
             <ul className="mt-4 space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
+              <li>
+                <Link href="/templates" className="hover:text-indigo-600 dark:hover:text-indigo-400">
+                  Mockup Templates
+                </Link>
+              </li>
+              <li>
+                <Link href="/help" className="hover:text-indigo-600 dark:hover:text-indigo-400">
+                  Help Center &amp; FAQs
+                </Link>
+              </li>
               <li>
                 <Link href="/#how-it-works" className="hover:text-indigo-600 dark:hover:text-indigo-400">
                   How ChatForge Works

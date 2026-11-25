@@ -1,79 +1,127 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Flame, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  Camera,
+  Flame,
+  Hash,
+  Image as ImageIcon,
+  MessageCircle,
+  MessageSquare,
+  PhoneCall,
+  Send,
+  Smartphone,
+  Sparkles,
+  Users,
+} from 'lucide-react';
 import type { GeneratorManifest } from '@/core/types';
 import { Badge } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-function MiniThumbnail({ manifest }: { manifest: GeneratorManifest }) {
+function PlatformBadgeIcon({ id }: { id: string }) {
+  const cls = 'h-3.5 w-3.5';
+  switch (id) {
+    case 'whatsapp-chat':
+      return <MessageCircle className={cls} aria-hidden="true" />;
+    case 'whatsapp-group-chat':
+      return <Users className={cls} aria-hidden="true" />;
+    case 'instagram-dm':
+      return <Camera className={cls} aria-hidden="true" />;
+    case 'instagram-story':
+      return <Smartphone className={cls} aria-hidden="true" />;
+    case 'instagram-post':
+      return <ImageIcon className={cls} aria-hidden="true" />;
+    case 'imessage':
+    case 'android-messages':
+      return <MessageSquare className={cls} aria-hidden="true" />;
+    case 'telegram-chat':
+      return <Send className={cls} aria-hidden="true" />;
+    case 'discord-chat':
+      return <Hash className={cls} aria-hidden="true" />;
+    case 'fake-call-screen':
+      return <PhoneCall className={cls} aria-hidden="true" />;
+    default:
+      return <MessageCircle className={cls} aria-hidden="true" />;
+  }
+}
+
+function buildPreviewSvgDataUrl(manifest: GeneratorManifest): string {
+  const palette: Record<string, { bg1: string; bg2: string; bubble: string; label: string }> = {
+    'whatsapp-chat': { bg1: '#059669', bg2: '#0f766e', bubble: '#d9fdd3', label: 'WhatsApp 1:1' },
+    'whatsapp-group-chat': { bg1: '#0d9488', bg2: '#047857', bubble: '#d9fdd3', label: 'Group Thread' },
+    'instagram-dm': { bg1: '#c026d3', bg2: '#4f46e5', bubble: '#7c3aed', label: 'Instagram DM' },
+    'instagram-story': { bg1: '#ec4899', bg2: '#f59e0b', bubble: '#ffffff', label: '9:16 Story' },
+    'instagram-post': { bg1: '#9333ea', bg2: '#db2777', bubble: '#f3e8ff', label: 'Feed 4:5' },
+    imessage: { bg1: '#2563eb', bg2: '#4f46e5', bubble: '#007aff', label: 'iOS iMessage' },
+    'android-messages': { bg1: '#0284c7', bg2: '#1d4ed8', bubble: '#1a73e8', label: 'Material RCS' },
+    'telegram-chat': { bg1: '#06b6d4', bg2: '#2563eb', bubble: '#effdde', label: 'Telegram UI' },
+    'discord-chat': { bg1: '#4f46e5', bg2: '#312e81', bubble: '#5865f2', label: '#general' },
+    'fake-call-screen': { bg1: '#6d28d9', bg2: '#1e3a8a', bubble: '#10b981', label: 'Incoming Call' },
+  };
+  const colors = palette[manifest.id] ?? palette['whatsapp-chat'];
   const isStory = manifest.capabilities.archetype === 'ephemeral_story';
   const isPost = manifest.capabilities.archetype === 'social_post';
   const isCall = manifest.capabilities.archetype === 'call_screen';
 
-  return (
-    <div
-      className={cn(
-        'relative flex h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br p-3',
-        manifest.accentGradient
-      )}
-    >
-      {isStory ? (
-        <div className="flex h-24 w-16 flex-col justify-between rounded-xl border border-white/30 bg-black/25 p-2 text-white backdrop-blur-xs">
-          <div className="flex gap-0.5">
-            <span className="h-0.5 flex-1 rounded bg-white" />
-            <span className="h-0.5 flex-1 rounded bg-white/40" />
-          </div>
-          <div className="rounded-md bg-white/90 p-1 text-[7px] font-bold text-slate-900">
-            Poll: A or B?
-          </div>
-        </div>
-      ) : isPost ? (
-        <div className="w-36 rounded-xl bg-white p-2 text-slate-900 shadow-md">
-          <div className="flex items-center gap-1.5">
-            <span className="h-3.5 w-3.5 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600" />
-            <span className="h-1.5 w-14 rounded bg-slate-200" />
-          </div>
-          <div className="mt-1.5 h-11 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100" />
-          <div className="mt-1.5 flex gap-1.5">
-            <span className="h-1.5 w-8 rounded bg-slate-200" />
-            <span className="h-1.5 w-6 rounded bg-slate-200" />
-          </div>
-        </div>
-      ) : isCall ? (
-        <div className="flex flex-col items-center gap-1.5 text-white">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-white/20 text-xs font-bold">
-            ML
-          </span>
-          <span className="text-[10px] font-semibold">Incoming Call...</span>
-          <div className="flex gap-4 pt-1">
-            <span className="h-4 w-4 rounded-full bg-rose-500" />
-            <span className="h-4 w-4 rounded-full bg-emerald-500" />
-          </div>
-        </div>
-      ) : (
-        <div className="w-40 space-y-1.5 rounded-xl bg-white/95 p-2.5 shadow-md">
-          <div className="w-24 rounded-lg bg-slate-100 px-2 py-1 text-[9px] font-medium text-slate-700">
-            Ready for launch?
-          </div>
-          <div className="ml-auto w-24 rounded-lg bg-indigo-600 px-2 py-1 text-right text-[9px] font-medium text-white">
-            Exporting PNG 🚀
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  let innerMarkup = `<rect x="44" y="18" width="192" height="92" rx="14" fill="rgba(255,255,255,0.94)"/>
+    <rect x="56" y="32" width="96" height="20" rx="8" fill="#f1f5f9"/>
+    <rect x="128" y="60" width="96" height="22" rx="8" fill="${colors.bubble}"/>
+    <rect x="56" y="90" width="76" height="8" rx="4" fill="#cbd5e1"/>`;
+
+  if (isStory) {
+    innerMarkup = `<rect x="98" y="10" width="84" height="108" rx="14" fill="rgba(15,23,42,0.45)" stroke="rgba(255,255,255,0.45)"/>
+      <rect x="108" y="20" width="30" height="3" rx="1.5" fill="#ffffff"/>
+      <rect x="142" y="20" width="30" height="3" rx="1.5" fill="rgba(255,255,255,0.4)"/>
+      <rect x="108" y="72" width="64" height="28" rx="6" fill="rgba(255,255,255,0.92)"/>`;
+  } else if (isPost) {
+    innerMarkup = `<rect x="74" y="12" width="132" height="104" rx="12" fill="#ffffff"/>
+      <circle cx="90" cy="26" r="7" fill="${colors.bg1}"/>
+      <rect x="102" y="23" width="54" height="6" rx="3" fill="#e2e8f0"/>
+      <rect x="82" y="40" width="116" height="52" rx="8" fill="${colors.bubble}"/>
+      <rect x="82" y="99" width="64" height="6" rx="3" fill="#cbd5e1"/>`;
+  } else if (isCall) {
+    innerMarkup = `<circle cx="140" cy="40" r="18" fill="rgba(255,255,255,0.24)" stroke="rgba(255,255,255,0.55)"/>
+      <rect x="104" y="66" width="72" height="8" rx="4" fill="rgba(255,255,255,0.85)"/>
+      <circle cx="116" cy="96" r="11" fill="#f43f5e"/>
+      <circle cx="164" cy="96" r="11" fill="#10b981"/>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="128" viewBox="0 0 280 128">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${colors.bg1}"/><stop offset="100%" stop-color="${colors.bg2}"/></linearGradient></defs>
+    <rect width="280" height="128" rx="16" fill="url(#g)"/>
+    ${innerMarkup}
+  </svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
 export function GeneratorCard({ manifest }: { manifest: GeneratorManifest }) {
+  const previewSrc = buildPreviewSvgDataUrl(manifest);
+
   return (
     <Link
-      href={`/generators/${manifest.slug}`}
+      href={manifest.routePath}
+      data-testid={`generator-card-${manifest.slug}`}
       className="group flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-700"
     >
       <div className="space-y-3">
-        <MiniThumbnail manifest={manifest} />
+        <div
+          className={cn(
+            'relative overflow-hidden rounded-xl bg-gradient-to-br',
+            manifest.accentGradient
+          )}
+        >
+          <img
+            src={previewSrc}
+            alt={`${manifest.name} preview mockup`}
+            className="h-32 w-full object-cover"
+          />
+        </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
+            <PlatformBadgeIcon id={manifest.id} />
+          </span>
           <Badge variant="outline">{manifest.platformFamily}</Badge>
           {manifest.popular && (
             <Badge variant="accent">
@@ -98,7 +146,7 @@ export function GeneratorCard({ manifest }: { manifest: GeneratorManifest }) {
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-semibold text-indigo-600 dark:border-slate-800 dark:text-indigo-400">
-        <span>Launch Generator</span>
+        <span>Create Now</span>
         <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
       </div>
     </Link>

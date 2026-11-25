@@ -44,11 +44,13 @@ export async function GET(
     entries = [
       renderUrlEntry('/', '1.0', 'weekly', lastMod),
       renderUrlEntry('/generators', '0.9', 'weekly', lastMod),
+      renderUrlEntry('/templates', '0.85', 'weekly', lastMod),
+      renderUrlEntry('/help', '0.8', 'weekly', lastMod),
       renderUrlEntry('/blog', '0.8', 'weekly', lastMod),
     ];
   } else if (name === 'generators.xml') {
     entries = GENERATOR_MANIFESTS.map((m) =>
-      renderUrlEntry(`/generators/${m.slug}`, '0.9', 'weekly', lastMod)
+      renderUrlEntry(m.routePath, '0.9', 'weekly', lastMod)
     );
   } else if (name === 'guides.xml') {
     entries = [

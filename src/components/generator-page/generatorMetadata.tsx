@@ -1,17 +1,36 @@
+import type { Metadata } from 'next';
 import { ImageResponse } from 'next/og';
-import { getGeneratorBySlug } from '@/core/registry/generators';
+import { GENERATOR_MAP } from '@/core/registry/generators';
+import { SITE_BASE_URL, buildHreflangAlternates } from '@/core/i18n/locales';
 
-export const runtime = 'nodejs';
-export const size = { width: 1200, height: 630 };
-export const contentType = 'image/png';
+export function buildGeneratorMetadata(platformId: string): Metadata {
+  const manifest = GENERATOR_MAP[platformId];
+  if (!manifest) return {};
+  const path = manifest.routePath;
+  return {
+    title: manifest.seoTitle,
+    description: manifest.seoDescription,
+    alternates: {
+      canonical: path,
+      languages: buildHreflangAlternates(path),
+    },
+    openGraph: {
+      title: manifest.seoTitle,
+      description: manifest.seoDescription,
+      url: `${SITE_BASE_URL}${path}`,
+      type: 'website',
+      siteName: 'ChatForge',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: manifest.seoTitle,
+      description: manifest.seoDescription,
+    },
+  };
+}
 
-export default async function GeneratorOgImage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-  const manifest = getGeneratorBySlug(slug);
+export function buildGeneratorOgImage(platformId: string) {
+  const manifest = GENERATOR_MAP[platformId];
   const title = manifest?.name ?? 'ChatForge Mockup Generator';
   const tagline =
     manifest?.tagline ??
@@ -59,12 +78,12 @@ export default async function GeneratorOgImage({
         <div style={{ display: 'flex', gap: '20px', fontSize: '22px', color: '#c7d2fe' }}>
           <span>100% Client-Side</span>
           <span>•</span>
-          <span>Free HD PNG / WebP</span>
+          <span>Zero Watermark PNG</span>
           <span>•</span>
-          <span>No Sign-Up</span>
+          <span>Light &amp; Dark Mode</span>
         </div>
       </div>
     ),
-    { ...size }
+    { width: 1200, height: 630 }
   );
 }

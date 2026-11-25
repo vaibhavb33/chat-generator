@@ -159,7 +159,7 @@ export default async function BlogArticlePage({
                 return (
                   <Link
                     key={gSlug}
-                    href={`/generators/${tool.slug}`}
+                    href={tool.routePath}
                     className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:border-indigo-400 dark:border-slate-700 dark:bg-slate-950 dark:text-indigo-400"
                   >
                     {tool.name} →

@@ -1,10 +1,12 @@
-const CACHE_VERSION = 'chatforge-shell-v1';
+const CACHE_VERSION = 'chatforge-shell-v2';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ROUTES = [
   '/',
   '/generators',
-  '/generators/whatsapp-chat',
+  '/whatsapp-chat-generator',
+  '/templates',
+  '/help',
   OFFLINE_URL,
   '/manifest.webmanifest',
   '/icons/icon-192.png',

@@ -1,28 +1,28 @@
 import { test, expect } from '@playwright/test';
 
 const CHAT_GENERATORS = [
-  'whatsapp-chat',
-  'whatsapp-group-chat',
-  'instagram-dm',
-  'imessage',
-  'android-messages',
-  'telegram-chat',
-  'discord-chat',
+  { id: 'whatsapp-chat', route: '/whatsapp-chat-generator' },
+  { id: 'whatsapp-group-chat', route: '/whatsapp-group-chat-generator' },
+  { id: 'instagram-dm', route: '/instagram-dm-generator' },
+  { id: 'imessage', route: '/imessage-generator' },
+  { id: 'android-messages', route: '/android-message-generator' },
+  { id: 'telegram-chat', route: '/telegram-chat-generator' },
+  { id: 'discord-chat', route: '/discord-chat-generator' },
 ] as const;
 
 test.describe('Functional Tests Across All 10 MVP Generators', () => {
-  for (const slug of CHAT_GENERATORS) {
-    test(`${slug}: renders dedicated UI, adds, duplicates, switches sender, toggles dark mode & exports PNG`, async ({
+  for (const gen of CHAT_GENERATORS) {
+    test(`${gen.id}: renders dedicated UI, adds, duplicates, switches sender, toggles dark mode & exports PNG`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: 1440, height: 900 });
-      await page.goto(`/generators/${slug}`);
+      await page.goto(gen.route);
 
-      await expect(page.getByTestId(`renderer-${slug}`)).toBeVisible();
+      await expect(page.getByTestId(`renderer-${gen.id}`)).toBeVisible();
       const desktopLeft = page.locator('aside').first();
       const desktopRight = page.locator('aside').nth(1);
 
-      const uniqueText = `Smoke test ${slug}`;
+      const uniqueText = `Smoke test ${gen.id}`;
       await desktopLeft.getByLabel('Message text').fill(uniqueText);
       await desktopLeft.getByTestId('add-message-btn').click();
       await expect(
@@ -44,6 +44,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
 
       // Export PNG
       await page.getByTestId('top-export-button').click();
+      await expect(page.getByTestId('confirm-export-btn')).toBeVisible();
       const downloadPromise = page.waitForEvent('download');
       await page.getByTestId('confirm-export-btn').click();
       const dl = await downloadPromise;
@@ -55,7 +56,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/instagram-story');
+    await page.goto('/instagram-story-generator');
 
     const desktopLeft = page.locator('aside').first();
     await desktopLeft.getByLabel('Headline Text').fill('Updated Story Headline!');
@@ -74,7 +75,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/instagram-post');
+    await page.goto('/instagram-post-generator');
 
     const desktopLeft = page.locator('aside').first();
     await desktopLeft.getByLabel('Location Tag').fill('Tokyo, Japan');
@@ -93,7 +94,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/fake-call-screen');
+    await page.goto('/fake-call-generator');
 
     const surface = page.getByTestId('mockup-export-surface');
     await expect(surface.getByText('Incoming call...')).toBeVisible();
@@ -112,7 +113,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/whatsapp-chat');
+    await page.goto('/whatsapp-chat-generator');
 
     await page.getByRole('button', { name: 'Projects' }).click();
     await page.getByRole('button', { name: 'Duplicate Project' }).click();

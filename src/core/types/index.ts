@@ -28,6 +28,7 @@ export type MessageType =
   | 'shared_post'
   | 'system'
   | 'date_separator'
+  | 'unread_divider'
   | 'poll';
 
 export type AttachmentKind =
@@ -136,6 +137,8 @@ export interface Participant {
   verifiedBadge: VerificationBadgeType;
   bioStatus?: string;
   isSelfDefault?: boolean;
+  isAdmin?: boolean;
+  isGroupCreator?: boolean;
 }
 
 export interface Message {
@@ -146,6 +149,7 @@ export interface Message {
   timestampLabel: string;
   replyToMessageId?: string;
   forwardedLabel?: 'none' | 'forwarded' | 'frequently_forwarded';
+  isDeleted?: boolean;
   isEdited?: boolean;
   isStarred?: boolean;
   attachments: Attachment[];
@@ -163,6 +167,60 @@ export interface Message {
   };
 }
 
+export type StoryStickerType =
+  | 'text'
+  | 'mention'
+  | 'location'
+  | 'hashtag'
+  | 'poll'
+  | 'question'
+  | 'emoji_slider'
+  | 'countdown'
+  | 'link'
+  | 'music'
+  | 'image_overlay';
+
+export type StoryFontStyle =
+  | 'classic'
+  | 'modern'
+  | 'neon'
+  | 'typewriter'
+  | 'strong';
+
+export interface StoryElement {
+  id: string;
+  type: StoryStickerType;
+  x: number; // percentage 0-100
+  y: number; // percentage 0-100
+  scale?: number; // scale factor 0.5 to 2
+  rotation?: number; // degrees -180 to 180
+  zIndex?: number;
+  text?: string;
+  fontStyle?: StoryFontStyle;
+  color?: string;
+  bgColor?: string;
+  align?: 'left' | 'center' | 'right';
+  mentionHandle?: string;
+  locationName?: string;
+  hashtagText?: string;
+  pollQuestion?: string;
+  pollOption1?: string;
+  pollOption2?: string;
+  pollVotes1?: number;
+  pollVotes2?: number;
+  questionPrompt?: string;
+  sliderEmoji?: string;
+  sliderValue?: number;
+  sliderQuestion?: string;
+  countdownName?: string;
+  countdownTarget?: string;
+  linkUrl?: string;
+  linkText?: string;
+  musicTrack?: string;
+  musicArtist?: string;
+  imageUrl?: string;
+}
+
 export interface StorySlide {
   id: string;
   backgroundCss: string;
@@ -173,6 +231,7 @@ export interface StorySlide {
   pollQuestion?: string;
   pollOptions?: [string, string];
   musicLabel?: string;
+  elements?: StoryElement[];
 }
 
 export interface Conversation {
@@ -184,6 +243,9 @@ export interface Conversation {
   selfParticipantId: string;
   groupMeta?: {
     groupName: string;
+    groupDescription?: string;
+    groupAvatarDataUrl?: string;
+    pinnedMessageId?: string;
     memberCountOverride?: number;
     showSenderNamesInBubbles: boolean;
     showSenderAvatarsInBubbles: boolean;
@@ -230,10 +292,18 @@ export interface PlatformTheme {
   platformId: string;
   colorScheme: ColorSchemeMode;
   osVariant: OsPlatformVariant;
-  bubbleStyle: 'native' | 'sms_green' | 'imessage_blue' | 'gradient_ig';
+  uiVersion?: 'ios_modern' | 'android_modern' | 'android_classic';
+  bubbleStyle:
+  | 'native'
+  | 'sms_green'
+  | 'imessage_blue'
+  | 'gradient_ig'
+  | 'whatsapp_classic'
+  | 'whatsapp_modern_pill'
+  | 'whatsapp_high_contrast';
   accentColorHex?: string;
   wallpaper: {
-    kind: 'default_pattern' | 'solid' | 'gradient';
+    kind: 'default_pattern' | 'solid' | 'gradient' | 'image';
     value: string;
   };
   statusBar: {
@@ -365,6 +435,8 @@ export interface PlatformCapabilities {
 export interface GeneratorManifest {
   id: string;
   slug: string;
+  routeSlug: string;
+  routePath: string;
   name: string;
   shortName: string;
   tagline: string;
@@ -380,4 +452,5 @@ export interface GeneratorManifest {
   seoTitle: string;
   seoDescription: string;
   faqs: Array<{ question: string; answer: string }>;
+  editorBadge?: string;
 }

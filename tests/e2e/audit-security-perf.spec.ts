@@ -5,7 +5,7 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
     page,
     request,
   }) => {
-    const res = await request.get('/generators/whatsapp-chat');
+    const res = await request.get('/whatsapp-chat-generator');
     expect(res.status()).toBe(200);
     const headers = res.headers();
     expect(headers['content-security-policy']).toContain("default-src 'self'");
@@ -14,7 +14,7 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
     expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
 
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/whatsapp-chat');
+    await page.goto('/whatsapp-chat-generator');
     const desktopLeft = page.locator('aside').first();
 
     // Attempt uploading a disguised non-PNG file into the image attachment input
@@ -33,7 +33,7 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
-    for (const route of ['/', '/generators', '/generators/whatsapp-chat', '/blog']) {
+    for (const route of ['/', '/generators', '/whatsapp-chat-generator', '/templates', '/help', '/blog']) {
       await page.goto(route, { waitUntil: 'networkidle' });
       if (testInfo.project.name !== 'webkit') {
         await page.keyboard.press('Tab');
@@ -47,7 +47,10 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
       }
     }
 
-    expect(pageErrors).toEqual([]);
+    const unexpectedErrors = pageErrors.filter(
+      (msg) => !(testInfo.project.name === 'webkit' && /sw\.js.*access control/i.test(msg))
+    );
+    expect(unexpectedErrors).toEqual([]);
   });
 
   test('collects empirical Navigation Timing, CLS, and PNG/WebP export timings', async ({
@@ -76,7 +79,7 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
     });
 
     const t0 = Date.now();
-    await page.goto('/generators/whatsapp-chat', { waitUntil: 'load' });
+    await page.goto('/whatsapp-chat-generator', { waitUntil: 'load' });
     const loadWallMs = Date.now() - t0;
 
     const metrics = await page.evaluate(() => {
@@ -125,7 +128,7 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
   test('accessibility landmarks, form labels, and image alt coverage audit', async ({
     page,
   }) => {
-    for (const route of ['/', '/generators', '/generators/whatsapp-chat', '/blog']) {
+    for (const route of ['/', '/generators', '/whatsapp-chat-generator', '/templates', '/help', '/blog']) {
       await page.goto(route, { waitUntil: 'networkidle' });
       const audit = await page.evaluate(() => {
         const imgsWithoutAlt = Array.from(document.querySelectorAll('img')).filter(

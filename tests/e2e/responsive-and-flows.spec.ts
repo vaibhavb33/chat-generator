@@ -9,7 +9,7 @@ test.describe('Responsive Layout Verification Across 6 Breakpoints', () => {
     }) => {
       await page.setViewportSize({ width, height: 844 });
 
-      for (const route of ['/', '/generators', '/generators/whatsapp-chat']) {
+      for (const route of ['/', '/generators', '/whatsapp-chat-generator']) {
         await page.goto(route, { waitUntil: 'networkidle' });
         const overflow = await page.evaluate(() => {
           return document.documentElement.scrollWidth > window.innerWidth;
@@ -49,7 +49,7 @@ test.describe('Studio Workspace Core Flows, States & PNG Export', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/whatsapp-chat');
+    await page.goto('/whatsapp-chat-generator');
 
     // Wait for hydration skeleton to finish
     await expect(page.getByTestId('mockup-export-surface')).toBeVisible();
@@ -103,7 +103,7 @@ test.describe('Studio Workspace Core Flows, States & PNG Export', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/generators/whatsapp-chat', { waitUntil: 'networkidle' });
+    await page.goto('/whatsapp-chat-generator', { waitUntil: 'networkidle' });
     await expect(page.getByTestId('mockup-export-surface')).toBeVisible();
 
     const mobilePanels = page.getByLabel('Mobile editing panels');
@@ -117,13 +117,13 @@ test.describe('Studio Workspace Core Flows, States & PNG Export', () => {
   test('renders Instagram Story, Instagram Post, Discord, and Fake Call Screen skins', async ({
     page,
   }) => {
-    for (const slug of [
-      'instagram-story',
-      'instagram-post',
-      'discord-chat',
-      'fake-call-screen',
+    for (const route of [
+      '/instagram-story-generator',
+      '/instagram-post-generator',
+      '/discord-chat-generator',
+      '/fake-call-generator',
     ]) {
-      await page.goto(`/generators/${slug}`);
+      await page.goto(route);
       await expect(page.getByTestId('mockup-export-surface')).toBeVisible();
     }
   });

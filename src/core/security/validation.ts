@@ -117,7 +117,14 @@ export function sanitizeImportedProject(rawText: string): Project {
     );
   }
 
-  // Strip any unsafe image URLs inside imported participants or attachments
+  // Strip any unsafe image URLs inside imported participants, wallpaper, or attachments
+  if (parsed.theme?.wallpaper?.kind === 'image' && !isSafeImageDataUrl(parsed.theme.wallpaper.value)) {
+    parsed.theme = {
+      ...parsed.theme,
+      wallpaper: { kind: 'default_pattern', value: '#EFEAE2' },
+    };
+  }
+
   parsed.cast = parsed.cast.map((p) => ({
     ...p,
     avatarDataUrl: isSafeImageDataUrl(p.avatarDataUrl) ? p.avatarDataUrl : undefined,
@@ -125,6 +132,14 @@ export function sanitizeImportedProject(rawText: string): Project {
 
   parsed.conversations = parsed.conversations.map((conv) => ({
     ...conv,
+    groupMeta: conv.groupMeta
+      ? {
+          ...conv.groupMeta,
+          groupAvatarDataUrl: isSafeImageDataUrl(conv.groupMeta.groupAvatarDataUrl)
+            ? conv.groupMeta.groupAvatarDataUrl
+            : undefined,
+        }
+      : undefined,
     postMeta: conv.postMeta
       ? {
           ...conv.postMeta,

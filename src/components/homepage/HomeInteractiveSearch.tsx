@@ -26,7 +26,7 @@ export function HomeInteractiveSearch() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (matches[0]) {
-      router.push(`/generators/${matches[0].slug}`);
+      router.push(matches[0].routePath);
     } else {
       router.push(`/generators?q=${encodeURIComponent(query)}`);
     }
@@ -60,7 +60,7 @@ export function HomeInteractiveSearch() {
         {matches.slice(0, 5).map((item) => (
           <Link
             key={item.id}
-            href={`/generators/${item.slug}`}
+            href={item.routePath}
             className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-indigo-600 dark:hover:bg-indigo-950/60"
           >
             {item.shortName}

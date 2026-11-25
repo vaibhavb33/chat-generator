@@ -9,9 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-const CATEGORIES: Array<{ id: 'all' | GeneratorCategory; label: string }> = [
+export type DirectoryCategoryFilter = 'all' | 'social' | GeneratorCategory;
+
+const CATEGORIES: Array<{ id: DirectoryCategoryFilter; label: string }> = [
   { id: 'all', label: 'All Generators' },
-  { id: 'messaging', label: 'Messaging' },
+  { id: 'messaging', label: 'Chat Generators' },
+  { id: 'social', label: 'Social Media Generators' },
   { id: 'social_post', label: 'Social Posts' },
   { id: 'story_profile', label: 'Stories & Profiles' },
   { id: 'phone_mockup', label: 'Phone Mockups' },
@@ -33,10 +36,13 @@ export function GeneratorDirectory({
   initialCategory = 'all',
 }: {
   initialQuery?: string;
-  initialCategory?: 'all' | GeneratorCategory;
+  initialCategory?: DirectoryCategoryFilter;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [category, setCategory] = useState<DirectoryCategoryFilter>(initialCategory);
+  const [platform, setPlatform] = useState<string>('All');
+  const [quickFilter, setQuickFilter] = useState<'all' | 'popular' | 'recent'>('all');
 
   useEffect(() => {
     const domValue = searchInputRef.current?.value;
@@ -44,14 +50,21 @@ export function GeneratorDirectory({
       setQuery(domValue);
     }
   }, [initialQuery]);
-  const [category, setCategory] = useState<'all' | GeneratorCategory>(initialCategory);
-  const [platform, setPlatform] = useState<string>('All');
-  const [quickFilter, setQuickFilter] = useState<'all' | 'popular' | 'recent'>('all');
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return GENERATOR_MANIFESTS.filter((item) => {
-      if (category !== 'all' && item.category !== category) return false;
+      if (category === 'social') {
+        if (
+          item.category !== 'social_post' &&
+          item.category !== 'story_profile' &&
+          item.platformFamily !== 'Instagram'
+        ) {
+          return false;
+        }
+      } else if (category !== 'all' && item.category !== category) {
+        return false;
+      }
       if (platform !== 'All' && item.platformFamily !== platform) return false;
       if (quickFilter === 'popular' && !item.popular) return false;
       if (quickFilter === 'recent' && !item.recentlyAdded) return false;

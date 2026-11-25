@@ -203,8 +203,8 @@ describe('Studio Store Mutations, Undo/Redo & Persistence', () => {
     ]);
     expect(LOCALES.ar.direction).toBe('rtl');
 
-    const alternates = buildHreflangAlternates('/generators/whatsapp-chat');
-    expect(alternates['en']).toBe('https://chatforge.studio/generators/whatsapp-chat');
-    expect(alternates['x-default']).toBe('https://chatforge.studio/generators/whatsapp-chat');
+    const alternates = buildHreflangAlternates('/whatsapp-chat-generator');
+    expect(alternates['en']).toBe('https://chatforge.studio/whatsapp-chat-generator');
+    expect(alternates['x-default']).toBe('https://chatforge.studio/whatsapp-chat-generator');
   });
 });

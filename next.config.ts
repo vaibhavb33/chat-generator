@@ -6,56 +6,27 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      {
-        source: '/generators/whatsapp',
-        destination: '/generators/whatsapp-chat',
-        permanent: true,
-      },
-      {
-        source: '/generators/fake-whatsapp-chat-generator',
-        destination: '/generators/whatsapp-chat',
-        permanent: true,
-      },
-      {
-        source: '/generators/iphone-imessage',
-        destination: '/generators/imessage',
-        permanent: true,
-      },
-      {
-        source: '/generators/text-message',
-        destination: '/generators/imessage',
-        permanent: true,
-      },
-      {
-        source: '/generators/sms',
-        destination: '/generators/android-messages',
-        permanent: true,
-      },
-      {
-        source: '/generators/telegram',
-        destination: '/generators/telegram-chat',
-        permanent: true,
-      },
-      {
-        source: '/generators/discord',
-        destination: '/generators/discord-chat',
-        permanent: true,
-      },
-      {
-        source: '/generators/call-screen',
-        destination: '/generators/fake-call-screen',
-        permanent: true,
-      },
-      {
-        source: '/directory',
-        destination: '/generators',
-        permanent: true,
-      },
-      {
-        source: '/tools',
-        destination: '/generators',
-        permanent: true,
-      },
+      { source: '/generators/whatsapp-chat', destination: '/whatsapp-chat-generator', permanent: true },
+      { source: '/generators/whatsapp', destination: '/whatsapp-chat-generator', permanent: true },
+      { source: '/generators/fake-whatsapp-chat-generator', destination: '/whatsapp-chat-generator', permanent: true },
+      { source: '/generators/whatsapp-group-chat', destination: '/whatsapp-group-chat-generator', permanent: true },
+      { source: '/generators/instagram-dm', destination: '/instagram-dm-generator', permanent: true },
+      { source: '/generators/instagram-story', destination: '/instagram-story-generator', permanent: true },
+      { source: '/generators/instagram-post', destination: '/instagram-post-generator', permanent: true },
+      { source: '/generators/imessage', destination: '/imessage-generator', permanent: true },
+      { source: '/generators/iphone-imessage', destination: '/imessage-generator', permanent: true },
+      { source: '/generators/text-message', destination: '/imessage-generator', permanent: true },
+      { source: '/generators/android-messages', destination: '/android-message-generator', permanent: true },
+      { source: '/generators/sms', destination: '/android-message-generator', permanent: true },
+      { source: '/generators/telegram-chat', destination: '/telegram-chat-generator', permanent: true },
+      { source: '/generators/telegram', destination: '/telegram-chat-generator', permanent: true },
+      { source: '/generators/discord-chat', destination: '/discord-chat-generator', permanent: true },
+      { source: '/generators/discord', destination: '/discord-chat-generator', permanent: true },
+      { source: '/generators/fake-call-screen', destination: '/fake-call-generator', permanent: true },
+      { source: '/generators/call-screen', destination: '/fake-call-generator', permanent: true },
+      { source: '/directory', destination: '/generators', permanent: true },
+      { source: '/tools', destination: '/generators', permanent: true },
+      { source: '/all-generators', destination: '/generators', permanent: true },
     ];
   },
   async headers() {

@@ -38,6 +38,7 @@ export function InstagramPostRenderer({
 
   return (
     <div
+      data-testid="renderer-instagram-post"
       className={cn(
         'flex flex-col',
         dark ? 'bg-black text-white' : 'bg-white text-slate-900'

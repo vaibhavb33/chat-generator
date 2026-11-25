@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, UserCheck } from 'lucide-react';
+import { Ban, CornerUpRight, Headphones, Play, Sparkles, UserCheck } from 'lucide-react';
 import type { Message, Participant } from '@/core/types';
 import { ParticipantAvatar } from '@/components/engine/ParticipantAvatar';
 import { MessageReaction } from '@/components/engine/MessageReaction';
@@ -14,6 +14,30 @@ import { DocumentMessage } from '@/components/engine/DocumentMessage';
 import { LocationMessage } from '@/components/engine/LocationMessage';
 import { CallEvent } from '@/components/engine/CallEvent';
 import { cn } from '@/lib/utils';
+
+function getReplyFallbackLabel(replyTarget: Message): string {
+  if (replyTarget.text?.trim()) return replyTarget.text;
+  switch (replyTarget.type) {
+    case 'image':
+      return 'Photo';
+    case 'video_preview':
+      return 'Video';
+    case 'voice_note':
+      return 'Voice message';
+    case 'audio':
+      return 'Audio';
+    case 'document':
+      return replyTarget.attachments[0]?.fileName || 'Document';
+    case 'location':
+      return replyTarget.attachments[0]?.locationMeta?.placeName || 'Location';
+    case 'contact_card':
+      return replyTarget.attachments[0]?.contactCardMeta?.fullName || 'Contact card';
+    case 'sticker':
+      return 'Sticker';
+    default:
+      return 'Attachment';
+  }
+}
 
 export function MessageBubble({
   message,
@@ -51,8 +75,17 @@ export function MessageBubble({
   onSelect: () => void;
 }) {
   const att = message.attachments[0];
+  const isSticker = message.type === 'sticker' || att?.kind === 'sticker';
 
   const renderBody = () => {
+    if (message.isDeleted) {
+      return (
+        <p className="flex items-center gap-1.5 text-[0.82em] italic opacity-65">
+          <Ban className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{isSelf ? 'You deleted this message' : 'This message was deleted'}</span>
+        </p>
+      );
+    }
     if (message.type === 'call_event') {
       return <CallEvent message={message} darkMode={darkMode || isSelf} />;
     }
@@ -86,6 +119,29 @@ export function MessageBubble({
         </div>
       );
     }
+    if (message.type === 'audio' || att?.kind === 'audio') {
+      const secs = att?.durationSeconds ?? 38;
+      const formatted = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+      return (
+        <div className="flex min-w-[205px] items-center gap-2.5 py-0.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white">
+            <Headphones className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="truncate text-xs font-semibold">
+              {att?.audioMeta?.trackTitle || message.text || 'Audio-Track.mp3'}
+            </p>
+            <div className="flex items-center gap-2 text-[10px] opacity-75">
+              <Play className="h-2.5 w-2.5 fill-current" />
+              <div className="h-1 flex-1 rounded-full bg-current/25">
+                <div className="h-full w-2/5 rounded-full bg-current" />
+              </div>
+              <span>{formatted}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
     if (message.type === 'voice_note' || att?.kind === 'voice_note') {
       return (
         <VoiceMessage
@@ -115,7 +171,7 @@ export function MessageBubble({
             </div>
           </div>
           {message.text && (
-            <p className="whitespace-pre-wrap break-words text-[13.5px] leading-[1.38]">
+            <p className="whitespace-pre-wrap break-words text-[0.845em] leading-[1.38]">
               {message.text}
             </p>
           )}
@@ -153,11 +209,19 @@ export function MessageBubble({
     if (message.type === 'location' || att?.kind === 'location') {
       return <LocationMessage attachment={att} />;
     }
-    if (message.type === 'sticker' || att?.kind === 'sticker') {
+    if (isSticker) {
+      const stickerText = (message.text || att?.caption || '🎉').trim();
+      const isEmojiShort = stickerText.length <= 6;
       return (
-        <div className="flex items-center gap-1.5 py-1 text-base font-bold">
-          <Sparkles className="h-5 w-5 text-amber-400" />
-          <span>{message.text || 'Sticker'}</span>
+        <div className="flex flex-col items-center py-1">
+          {isEmojiShort ? (
+            <span className="text-5xl leading-none select-none">{stickerText}</span>
+          ) : (
+            <div className="flex items-center gap-1.5 rounded-xl bg-amber-400/15 px-3 py-2 text-base font-bold">
+              <Sparkles className="h-5 w-5 text-amber-400" />
+              <span>{stickerText}</span>
+            </div>
+          )}
         </div>
       );
     }
@@ -184,7 +248,7 @@ export function MessageBubble({
       );
     }
     return (
-      <p className="whitespace-pre-wrap break-words text-[13.5px] leading-[1.38]">
+      <p className="whitespace-pre-wrap break-words text-[0.845em] leading-[1.38]">
         {message.text}
       </p>
     );
@@ -210,28 +274,48 @@ export function MessageBubble({
       <div
         className={cn(
           'relative max-w-[78%] rounded-2xl px-3 py-2 shadow-2xs transition-shadow',
-          bubbleClass,
+          isSticker ? 'bg-transparent! shadow-none! px-1.5 py-1' : bubbleClass,
           selected && 'ring-2 ring-indigo-500 ring-offset-1'
         )}
       >
+        {message.forwardedLabel && message.forwardedLabel !== 'none' && (
+          <div className="mb-0.5 flex items-center gap-1 text-[10.5px] italic opacity-70">
+            <CornerUpRight className="h-3 w-3 shrink-0" />
+            <span>
+              {message.forwardedLabel === 'frequently_forwarded'
+                ? 'Forwarded many times'
+                : 'Forwarded'}
+            </span>
+          </div>
+        )}
+
         {showGroupSender && sender && (
-          <p
-            className="mb-0.5 text-[11px] font-bold"
-            style={{ color: sender.nameColorHex || '#4F46E5' }}
-          >
-            {sender.displayName}
-          </p>
+          <div className="mb-0.5 flex items-center justify-between gap-2">
+            <p
+              className="truncate text-[11px] font-bold"
+              style={{ color: sender.nameColorHex || '#4F46E5' }}
+            >
+              {sender.displayName}
+            </p>
+            {(sender.isGroupCreator || sender.isAdmin) && (
+              <span className="shrink-0 text-[9.5px] font-medium opacity-60">
+                {sender.isGroupCreator ? '~ Creator' : '~ Admin'}
+              </span>
+            )}
+          </div>
         )}
 
         {replyTarget && (
           <div
             className={cn(
-              'mb-1.5 rounded-lg border-l-2 px-2 py-1 text-[11px]',
-              darkMode ? 'border-emerald-400 bg-black/25' : 'border-indigo-500 bg-black/5'
+              'mb-1.5 rounded-lg border-l-[3px] px-2 py-1 text-[11px]',
+              darkMode ? 'border-emerald-400 bg-black/25' : 'border-emerald-600 bg-black/5'
             )}
           >
-            <p className="font-semibold">{replySender?.displayName ?? 'Member'}</p>
-            <p className="truncate opacity-80">{replyTarget.text}</p>
+            <p className="font-semibold text-emerald-700 dark:text-emerald-300">
+              {replySender?.displayName ?? 'Member'}
+            </p>
+            <p className="truncate opacity-80">{getReplyFallbackLabel(replyTarget)}</p>
           </div>
         )}
 
@@ -241,7 +325,9 @@ export function MessageBubble({
           <div
             className={cn(
               'mt-1 flex items-center justify-end gap-1 text-[10px]',
-              footerClass ?? 'opacity-65'
+              isSticker
+                ? 'rounded-full bg-black/45 px-2 py-0.5 text-white!'
+                : (footerClass ?? 'opacity-65')
             )}
           >
             <span>{message.timestampLabel}</span>

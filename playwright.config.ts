@@ -30,14 +30,30 @@ export default defineConfig({
     },
     {
       name: 'firefox',
-      testMatch: ['**/audit-security-perf.spec.ts', '**/responsive-and-flows.spec.ts'],
+      testMatch: [
+        '**/audit-security-perf.spec.ts',
+        '**/responsive-and-flows.spec.ts',
+        '**/dedicated-routes.spec.ts',
+        '**/whatsapp-chat.spec.ts',
+        '**/whatsapp-group.spec.ts',
+        '**/instagram-dm.spec.ts',
+        '**/instagram-story.spec.ts',
+      ],
       use: {
         ...devices['Desktop Firefox'],
       },
     },
     {
       name: 'webkit',
-      testMatch: ['**/audit-security-perf.spec.ts', '**/responsive-and-flows.spec.ts'],
+      testMatch: [
+        '**/audit-security-perf.spec.ts',
+        '**/responsive-and-flows.spec.ts',
+        '**/dedicated-routes.spec.ts',
+        '**/whatsapp-chat.spec.ts',
+        '**/whatsapp-group.spec.ts',
+        '**/instagram-dm.spec.ts',
+        '**/instagram-story.spec.ts',
+      ],
       use: {
         ...devices['Desktop Safari'],
       },

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
   CheckCircle2,
@@ -22,7 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/primitives';
-import { GENERATOR_MANIFESTS } from '@/core/registry/generators';
+import { GENERATOR_MANIFESTS, GENERATOR_MAP } from '@/core/registry/generators';
 import { useStudioStore } from '@/core/store/useStudioStore';
 import type { DeviceFramePreset } from '@/core/types';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ export function StudioTopBar({
   onOpenTemplates: () => void;
   onOpenProjects: () => void;
 }) {
+  const router = useRouter();
   const project = useStudioStore((s) => s.project);
   const pastCount = useStudioStore((s) => s.past.length);
   const futureCount = useStudioStore((s) => s.future.length);
@@ -45,7 +47,6 @@ export function StudioTopBar({
   const undo = useStudioStore((s) => s.undo);
   const redo = useStudioStore((s) => s.redo);
   const saveNow = useStudioStore((s) => s.saveNow);
-  const switchPlatformInPlace = useStudioStore((s) => s.switchPlatformInPlace);
   const setDeviceFrame = useStudioStore((s) => s.setDeviceFrame);
   const setPreviewMode = useStudioStore((s) => s.setPreviewMode);
   const setTimelineOpen = useStudioStore((s) => s.setTimelineOpen);
@@ -66,9 +67,12 @@ export function StudioTopBar({
           </Link>
 
           <select
-            aria-label="Select generator platform"
+            aria-label="Quick switch generator"
             value={project.platformId}
-            onChange={(e) => switchPlatformInPlace(e.target.value)}
+            onChange={(e) => {
+              const target = GENERATOR_MAP[e.target.value];
+              if (target) router.push(target.routePath);
+            }}
             className="h-8 max-w-[140px] truncate rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:max-w-[190px] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           >
             {GENERATOR_MANIFESTS.map((m) => (

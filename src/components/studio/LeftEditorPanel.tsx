@@ -20,6 +20,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/primit
 import { GENERATOR_MAP } from '@/core/registry/generators';
 import { validateImageFileUpload } from '@/core/security/validation';
 import { getActiveConversation, useStudioStore } from '@/core/store/useStudioStore';
+import { WhatsAppGroupEditor } from '@/components/studio/WhatsAppGroupEditor';
+import { InstagramDmEditor } from '@/components/studio/InstagramDmEditor';
+import { InstagramStoryEditor } from '@/components/studio/InstagramStoryEditor';
 import type { MessageType, ReadReceiptStatus, VerificationBadgeType } from '@/core/types';
 import { cn } from '@/lib/utils';
 
@@ -57,6 +60,9 @@ export function LeftEditorPanel({
   const [composerType, setComposerType] = useState<MessageType>('text');
   const [composerTime, setComposerTime] = useState('9:42 AM');
   const [composerReceipt, setComposerReceipt] = useState<ReadReceiptStatus>('read');
+  const [composerForwarded, setComposerForwarded] = useState<
+    'none' | 'forwarded' | 'frequently_forwarded'
+  >('none');
   const [composerReplyToId, setComposerReplyToId] = useState<string>('');
   const [composerCallOutcome, setComposerCallOutcome] = useState<
     'answered' | 'missed' | 'declined'
@@ -69,21 +75,60 @@ export function LeftEditorPanel({
     ? composerSenderId
     : conv.selfParticipantId;
 
+  if (project.platformId === 'whatsapp-group-chat') {
+    return (
+      <WhatsAppGroupEditor
+        onOpenScriptImport={onOpenScriptImport}
+        onRequestClearAll={onRequestClearAll}
+      />
+    );
+  }
+
+  if (project.platformId === 'instagram-dm') {
+    return (
+      <InstagramDmEditor
+        onOpenScriptImport={onOpenScriptImport}
+        onRequestClearAll={onRequestClearAll}
+      />
+    );
+  }
+
+  if (project.platformId === 'instagram-story') {
+    return (
+      <InstagramStoryEditor
+        onOpenScriptImport={onOpenScriptImport}
+        onRequestClearAll={onRequestClearAll}
+      />
+    );
+  }
+
   const handleAddMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!composerText.trim() && composerType === 'text') return;
+    const defaultTextByType: Partial<Record<MessageType, string>> = {
+      unread_divider: '1 UNREAD MESSAGE',
+      date_separator: 'Today',
+      sticker: '🎉',
+      audio: 'Studio-Voice-Mix.mp3',
+      video_preview: 'Quick studio clip preview',
+    };
     addMessage({
       senderId: effectiveSenderId,
       type: composerType,
-      text: composerText.trim() || `${composerType.replace('_', ' ')} attachment`,
+      text:
+        composerText.trim() ||
+        defaultTextByType[composerType] ||
+        `${composerType.replace('_', ' ')} attachment`,
       timestampLabel: composerTime.trim() || '9:42 AM',
       readStatus: composerReceipt,
+      forwardedLabel: composerForwarded,
       replyToMessageId: composerReplyToId || undefined,
       callOutcome: composerCallOutcome,
       callMedia: composerCallMedia,
     });
     setComposerText('');
     setComposerReplyToId('');
+    setComposerForwarded('none');
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,6 +193,14 @@ export function LeftEditorPanel({
         className="flex h-full flex-col"
       >
         <div className="border-b border-slate-200 px-3 py-2.5 dark:border-slate-800">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span
+              data-testid="platform-editor-badge"
+              className="truncate text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400"
+            >
+              {manifest?.editorBadge ?? manifest?.name ?? 'Platform Editor'}
+            </span>
+          </div>
           <TabsList className="w-full">
             <TabsTrigger value="messages">
               {project.archetype === 'ephemeral_story'
@@ -426,11 +479,34 @@ export function LeftEditorPanel({
 
                 <Textarea
                   aria-label="Message text"
-                  placeholder="Type dialogue or caption..."
+                  placeholder={
+                    composerType === 'unread_divider'
+                      ? '1 UNREAD MESSAGE'
+                      : composerType === 'date_separator'
+                        ? 'Yesterday / November 25'
+                        : 'Type dialogue or caption (Enter for line breaks)...'
+                  }
                   value={composerText}
                   onChange={(e) => setComposerText(e.target.value)}
                   className="min-h-[66px] bg-white text-xs dark:bg-slate-950"
                 />
+
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="mr-1 text-[10px] font-medium text-slate-500">
+                    Quick emoji:
+                  </span>
+                  {['😊', '😂', '❤️', '👍', '🔥', '🎉', '🙏', '👀'].map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      aria-label={`Insert emoji ${em}`}
+                      onClick={() => setComposerText((prev) => `${prev}${em}`)}
+                      className="rounded px-1.5 py-0.5 text-xs hover:bg-white dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <Input
@@ -455,23 +531,39 @@ export function LeftEditorPanel({
                   </select>
                 </div>
 
-                {conv.messages.some((m) => m.senderId !== 'system') && (
+                <div className="grid grid-cols-2 gap-2">
                   <select
-                    aria-label="Reply to message"
-                    value={composerReplyToId}
-                    onChange={(e) => setComposerReplyToId(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-900"
+                    aria-label="Forwarded status"
+                    value={composerForwarded}
+                    onChange={(e) =>
+                      setComposerForwarded(
+                        e.target.value as 'none' | 'forwarded' | 'frequently_forwarded'
+                      )
+                    }
+                    className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-900"
                   >
-                    <option value="">No reply quote</option>
-                    {conv.messages
-                      .filter((m) => m.senderId !== 'system' && m.text)
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          Reply to: {(m.text ?? '').slice(0, 34)}
-                        </option>
-                      ))}
+                    <option value="none">Not Forwarded</option>
+                    <option value="forwarded">Forwarded</option>
+                    <option value="frequently_forwarded">Forwarded Many Times</option>
                   </select>
-                )}
+                  {conv.messages.some((m) => m.senderId !== 'system') && (
+                    <select
+                      aria-label="Reply to message"
+                      value={composerReplyToId}
+                      onChange={(e) => setComposerReplyToId(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      <option value="">No reply quote</option>
+                      {conv.messages
+                        .filter((m) => m.senderId !== 'system' && m.text)
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            Reply to: {(m.text ?? '').slice(0, 28)}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
 
                 {composerType === 'call_event' && (
                   <div className="grid grid-cols-2 gap-2">
@@ -617,14 +709,14 @@ export function LeftEditorPanel({
                         </div>
                       </div>
 
-                      <input
-                        type="text"
+                      <textarea
+                        rows={1}
                         aria-label="Edit message content"
                         value={m.text ?? ''}
                         onChange={(e) =>
                           updateMessage(m.id, { text: e.target.value })
                         }
-                        className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-950"
+                        className="mt-1.5 w-full resize-y rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-950"
                       />
 
                       {m.senderId !== 'system' && (
@@ -644,6 +736,24 @@ export function LeftEditorPanel({
                                 {emoji}
                               </button>
                             ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateMessage(m.id, {
+                                  forwardedLabel:
+                                    m.forwardedLabel === 'forwarded' ? 'none' : 'forwarded',
+                                })
+                              }
+                              aria-label="Toggle forwarded badge"
+                              className={cn(
+                                'ml-1 rounded border px-1.5 py-0.5 text-[10px] font-medium cursor-pointer',
+                                m.forwardedLabel && m.forwardedLabel !== 'none'
+                                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
+                                  : 'border-slate-200 text-slate-500 hover:bg-slate-100 dark:border-slate-700'
+                              )}
+                            >
+                              Fwd
+                            </button>
                           </div>
                           <div className="flex items-center gap-1">
                             <select

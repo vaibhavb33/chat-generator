@@ -17,6 +17,7 @@ export function createDefaultTheme(platformId: string): PlatformTheme {
     platformId,
     colorScheme: isDiscord ? 'dark' : 'light',
     osVariant: platformId === 'android-messages' ? 'android' : 'ios',
+    uiVersion: platformId === 'android-messages' ? 'android_modern' : 'ios_modern',
     bubbleStyle: platformId === 'imessage' ? 'imessage_blue' : 'native',
     accentColorHex: platformId === 'instagram-dm' ? '#7C3AED' : '#4F46E5',
     wallpaper: {
@@ -63,6 +64,8 @@ export function createSeedProject(platformId: string): Project {
       nameColorHex: '#4F46E5',
       verifiedBadge: 'none',
       isSelfDefault: true,
+      isAdmin: manifest.id === 'whatsapp-group-chat',
+      isGroupCreator: manifest.id === 'whatsapp-group-chat',
     },
     {
       id: otherId,
@@ -72,8 +75,14 @@ export function createSeedProject(platformId: string): Project {
       avatarFallbackColor: '#7C3AED',
       nameColorHex: '#059669',
       roleLabel: manifest.id === 'discord-chat' ? 'Moderator' : 'Admin',
-      verifiedBadge: manifest.id === 'instagram-post' || manifest.id === 'instagram-dm' ? 'blue' : 'none',
+      verifiedBadge:
+        manifest.id === 'instagram-post' ||
+        manifest.id === 'instagram-dm' ||
+        manifest.id === 'instagram-story'
+          ? 'blue'
+          : 'none',
       bioStatus: 'online',
+      isAdmin: manifest.id === 'whatsapp-group-chat',
     },
     {
       id: thirdId,
@@ -118,6 +127,11 @@ export function createSeedProject(platformId: string): Project {
       ? {
           groupName:
             manifest.id === 'discord-chat' ? '#launch-weekend' : 'Weekend Shoot Crew 🎬',
+          groupDescription:
+            manifest.id === 'whatsapp-group-chat'
+              ? 'Campaign shoot schedule, creative reviews & export approvals.'
+              : undefined,
+          pinnedMessageId: manifest.id === 'whatsapp-group-chat' ? 'msg_g_1' : undefined,
           memberCountOverride: 14,
           showSenderNamesInBubbles: true,
           showSenderAvatarsInBubbles: true,
@@ -149,6 +163,53 @@ export function createSeedProject(platformId: string): Project {
                 pollQuestion: 'Which mockup do you use most?',
                 pollOptions: ['WhatsApp / iMessage', 'Instagram DM / Story'],
                 musicLabel: 'Midnight Synth • Studio Mix',
+                elements: [
+                  {
+                    id: 'el_mention_1',
+                    type: 'mention',
+                    mentionHandle: '@mayalin.creates',
+                    x: 50,
+                    y: 22,
+                    scale: 1,
+                  },
+                  {
+                    id: 'el_loc_1',
+                    type: 'location',
+                    locationName: 'Shibuya, Tokyo',
+                    x: 26,
+                    y: 29,
+                    scale: 1,
+                  },
+                  {
+                    id: 'el_tag_1',
+                    type: 'hashtag',
+                    hashtagText: '#CreatorTools',
+                    x: 74,
+                    y: 29,
+                    scale: 1,
+                  },
+                  {
+                    id: 'el_poll_1',
+                    type: 'poll',
+                    pollQuestion: 'Which mockup do you use most?',
+                    pollOption1: 'WhatsApp / iMessage',
+                    pollOption2: 'Instagram DM / Story',
+                    pollVotes1: 68,
+                    pollVotes2: 32,
+                    x: 50,
+                    y: 55,
+                    scale: 1,
+                  },
+                  {
+                    id: 'el_link_1',
+                    type: 'link',
+                    linkUrl: 'https://chatforge.dev/mockups',
+                    linkText: 'chatforge.dev/mockups',
+                    x: 50,
+                    y: 74,
+                    scale: 1,
+                  },
+                ],
               },
               {
                 id: 'slide_2',
@@ -157,6 +218,35 @@ export function createSeedProject(platformId: string): Project {
                 headlineText: 'Drop your feedback below 👇',
                 subText: 'Swipe up or tap the poll to vote',
                 postedAtLabel: '1h',
+                elements: [
+                  {
+                    id: 'el_q_1',
+                    type: 'question',
+                    questionPrompt: 'Ask me anything about our 2026 launch!',
+                    x: 50,
+                    y: 30,
+                    scale: 1,
+                  },
+                  {
+                    id: 'el_slider_1',
+                    type: 'emoji_slider',
+                    sliderEmoji: '🔥',
+                    sliderValue: 88,
+                    sliderQuestion: 'How hyped are you for dark mode?',
+                    x: 50,
+                    y: 54,
+                    scale: 1,
+                  },
+                  {
+                    id: 'el_cd_1',
+                    type: 'countdown',
+                    countdownName: 'Major Release Drop',
+                    countdownTarget: '02d 14h 35m',
+                    x: 50,
+                    y: 74,
+                    scale: 1,
+                  },
+                ],
               },
             ],
             activeSlideIndex: 0,
@@ -247,6 +337,113 @@ function buildSeedMessages(
 ): Conversation['messages'] {
   if (platformId === 'fake-call-screen') {
     return [];
+  }
+
+  if (platformId === 'instagram-dm') {
+    return [
+      {
+        id: 'ig_date_1',
+        senderId: 'system',
+        type: 'date_separator' as const,
+        text: 'Today',
+        timestampLabel: '',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'none' as const },
+      },
+      {
+        id: 'ig_1',
+        senderId: otherId,
+        type: 'text' as const,
+        text: 'Hey! Loved your latest Reel 🔥 Can we collab?',
+        timestampLabel: '9:38 AM',
+        attachments: [],
+        reactions: [{ emoji: '❤️', participantIds: [selfId], count: 1 }],
+        readReceipt: { status: 'read' as const },
+      },
+      {
+        id: 'ig_2',
+        senderId: selfId,
+        type: 'text' as const,
+        text: 'Absolutely! Let\'s do a DM series together 🤝',
+        timestampLabel: '9:39 AM',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'read' as const, readAtLabel: '9:39 AM' },
+      },
+      {
+        id: 'ig_3',
+        senderId: otherId,
+        type: 'shared_post' as const,
+        text: '',
+        timestampLabel: '9:40 AM',
+        attachments: [
+          {
+            id: 'att_sp_1',
+            kind: 'shared_post' as const,
+            sharedPostMeta: {
+              authorHandle: '@mayalin.creates',
+              captionSnippet: 'Behind the scenes of our biggest drop yet 🎬',
+              isReel: true,
+            },
+          },
+        ],
+        reactions: [],
+        readReceipt: { status: 'read' as const },
+      },
+      {
+        id: 'ig_4',
+        senderId: selfId,
+        type: 'voice_note' as const,
+        text: 'Sent you a voice note!',
+        timestampLabel: '9:41 AM',
+        attachments: [
+          {
+            id: 'att_vn_ig',
+            kind: 'voice_note' as const,
+            durationSeconds: 11,
+            voiceNoteMeta: {
+              waveformPeaks: [0.3, 0.6, 0.85, 0.5, 0.9, 0.7, 0.4, 0.65, 0.95, 0.55, 0.3,
+                0.75, 0.9, 0.5, 0.35, 0.7, 0.85, 0.6, 0.4, 0.65],
+              playbackSpeed: '1x' as const,
+              isListened: false,
+            },
+          },
+        ],
+        reactions: [],
+        readReceipt: { status: 'read' as const, readAtLabel: '9:41 AM' },
+      },
+      {
+        id: 'ig_5',
+        senderId: otherId,
+        type: 'story_reply' as const,
+        text: 'Okay this story is EVERYTHING 😍',
+        timestampLabel: '9:42 AM',
+        attachments: [
+          {
+            id: 'att_sr_1',
+            kind: 'story_reply' as const,
+            storyReplyMeta: {
+              authorHandle: '@you.studio',
+              storyLabel: 'New creator tool drop ✨',
+              storyGradient: 'linear-gradient(155deg,#4F46E5,#A855F7,#EC4899)',
+            },
+          },
+        ],
+        reactions: [{ emoji: '😍', participantIds: [selfId], count: 1 }],
+        readReceipt: { status: 'read' as const },
+      },
+      {
+        id: 'ig_6',
+        senderId: selfId,
+        type: 'text' as const,
+        text: 'Thanks! Dropping the full tutorial tomorrow 🚀',
+        timestampLabel: '9:43 AM',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'delivered' as const },
+      },
+    ];
   }
 
   if (platformId === 'instagram-post') {

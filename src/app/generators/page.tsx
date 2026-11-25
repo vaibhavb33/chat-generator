@@ -3,7 +3,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
-import { GeneratorDirectory } from '@/components/directory/GeneratorDirectory';
+import {
+  GeneratorDirectory,
+  type DirectoryCategoryFilter,
+} from '@/components/directory/GeneratorDirectory';
 import { Badge } from '@/components/ui/input';
 import { SITE_BASE_URL, buildHreflangAlternates } from '@/core/i18n/locales';
 
@@ -29,13 +32,26 @@ export const metadata: Metadata = {
   },
 };
 
+const VALID_CATEGORIES = new Set<DirectoryCategoryFilter>([
+  'all',
+  'messaging',
+  'social',
+  'social_post',
+  'story_profile',
+  'phone_mockup',
+]);
+
 export default async function GeneratorsDirectoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; category?: string }>;
 }) {
   const resolved = await searchParams;
   const initialQuery = resolved.q ?? '';
+  const initialCategory: DirectoryCategoryFilter =
+    resolved.category && VALID_CATEGORIES.has(resolved.category as DirectoryCategoryFilter)
+      ? (resolved.category as DirectoryCategoryFilter)
+      : 'all';
 
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
@@ -79,7 +95,11 @@ export default async function GeneratorsDirectoryPage({
         </div>
 
         <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-slate-200/60" />}>
-          <GeneratorDirectory initialQuery={initialQuery} />
+          <GeneratorDirectory
+            key={initialCategory}
+            initialQuery={initialQuery}
+            initialCategory={initialCategory}
+          />
         </Suspense>
       </main>
 

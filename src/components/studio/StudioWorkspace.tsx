@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
   ChevronDown,
@@ -43,11 +44,15 @@ import {
   exportProjectJsonBundle,
   parseImportedProjectJson,
 } from '@/core/export/exportEngine';
+import { BUILTIN_TEMPLATES } from '@/core/engine/templateLibrary';
 import { MAX_JSON_IMPORT_BYTES } from '@/core/security/validation';
 import { useStudioStore } from '@/core/store/useStudioStore';
 import { cn } from '@/lib/utils';
 
 export function StudioWorkspace({ platformId }: { platformId: string }) {
+  const searchParams = useSearchParams();
+  const templateParam = searchParams.get('template');
+  const applyTemplate = useStudioStore((s) => s.applyTemplate);
   const initPlatform = useStudioStore((s) => s.initPlatform);
   const project = useStudioStore((s) => s.project);
   const isHydrating = useStudioStore((s) => s.isHydrating);
@@ -71,8 +76,18 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
   const [mobilePanelMode, setMobilePanelMode] = useState<'content' | 'style' | 'closed'>('content');
 
   useEffect(() => {
-    void initPlatform(platformId);
-  }, [platformId, initPlatform]);
+    let active = true;
+    void initPlatform(platformId).then(() => {
+      if (!active || !templateParam) return;
+      const tpl = BUILTIN_TEMPLATES.find((t) => t.id === templateParam);
+      if (tpl) {
+        applyTemplate(tpl);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [platformId, templateParam, initPlatform, applyTemplate]);
 
   // Global keyboard shortcuts for Undo/Redo
   useEffect(() => {

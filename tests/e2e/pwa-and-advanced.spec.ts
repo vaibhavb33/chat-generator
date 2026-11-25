@@ -21,7 +21,7 @@ test.describe('Prompt 05: Advanced Features, Image/Video Export & PWA Acceptance
     const appleIcon = await request.get('/icons/apple-touch-icon.png');
     expect(appleIcon.status()).toBe(200);
 
-    await page.goto('/generators/whatsapp-chat');
+    await page.goto('/whatsapp-chat-generator');
     const mobileCapable = await page
       .locator('meta[name="mobile-web-app-capable"]')
       .getAttribute('content');
@@ -55,7 +55,7 @@ test.describe('Prompt 05: Advanced Features, Image/Video Export & PWA Acceptance
     context,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/generators/whatsapp-chat', { waitUntil: 'networkidle' });
+    await page.goto('/whatsapp-chat-generator', { waitUntil: 'networkidle' });
 
     // Ensure SW is active and route is cached
     await page.evaluate(async () => {
@@ -105,14 +105,14 @@ test.describe('Prompt 05: Advanced Features, Image/Video Export & PWA Acceptance
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/instagram-dm');
+    await page.goto('/instagram-dm-generator');
 
     const desktopLeft = page.locator('aside').first();
     await desktopLeft.getByLabel('Message type').selectOption('story_reply');
     await desktopLeft.getByLabel('Message text').fill('Love your studio setup!');
     await desktopLeft.getByTestId('add-message-btn').click();
     await expect(
-      page.getByTestId('mockup-export-surface').getByText('Story preview')
+      page.getByTestId('mockup-export-surface').getByText('Story preview').first()
     ).toBeVisible();
 
     await page.getByTestId('top-export-button').click();
@@ -132,7 +132,7 @@ test.describe('Prompt 05: Advanced Features, Image/Video Export & PWA Acceptance
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/whatsapp-chat');
+    await page.goto('/whatsapp-chat-generator');
 
     await page.getByRole('button', { name: /Video/i }).click();
     const bar = page.getByTestId('video-timeline-bar');
@@ -153,7 +153,7 @@ test.describe('Prompt 05: Advanced Features, Image/Video Export & PWA Acceptance
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/generators/whatsapp-chat');
+    await page.goto('/whatsapp-chat-generator');
 
     await page.getByRole('button', { name: 'Templates' }).click();
     await page.getByPlaceholder('Save current chat as template...').fill('My Launch Template');

@@ -92,7 +92,7 @@ export default function HomePage() {
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button asChild variant="gradient" size="lg">
-                  <Link href="/generators/whatsapp-chat">
+                  <Link href="/whatsapp-chat-generator">
                     Start Creating Free
                     <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -155,7 +155,7 @@ export default function HomePage() {
                     Switch skins: WhatsApp • iMessage • IG DM
                   </span>
                   <Link
-                    href="/generators/whatsapp-chat"
+                    href="/whatsapp-chat-generator"
                     className="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
                   >
                     Try live →
@@ -436,28 +436,28 @@ export default function HomePage() {
                 {
                   title: 'SaaS Support Case Study',
                   platform: 'WhatsApp Chat',
-                  slug: 'whatsapp-chat',
+                  href: '/whatsapp-chat-generator',
                   previewA: 'Order #CF-8841 arrived damaged 😔',
                   previewB: 'Express replacement queued! Tracking sent.',
                 },
                 {
                   title: 'Campaign Truncation Check',
                   platform: 'Instagram Post',
-                  slug: 'instagram-post',
+                  href: '/instagram-post-generator',
                   previewA: 'Verified 4:5 Feed Card • 2,841 likes',
                   previewB: 'Hook verified above mobile "...more" fold.',
                 },
                 {
                   title: 'Film Set Prop Scene',
                   platform: 'Fake Call Screen',
-                  slug: 'fake-call-screen',
+                  href: '/fake-call-generator',
                   previewA: 'Incoming WhatsApp Voice Call • Maya Lin',
                   previewB: 'Interactive Ring & Active 01:14 Timer.',
                 },
               ].map((ex) => (
                 <Link
                   key={ex.title}
-                  href={`/generators/${ex.slug}`}
+                  href={ex.href}
                   className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
                 >
                   <Badge variant="outline">{ex.platform}</Badge>
