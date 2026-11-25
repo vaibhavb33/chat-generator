@@ -1,0 +1,1126 @@
+'use client';
+
+import { create } from 'zustand';
+import type {
+  Conversation,
+  DeviceFramePreset,
+  ExportFormat,
+  Message,
+  MessageType,
+  Participant,
+  PlatformTheme,
+  Project,
+  ReadReceiptStatus,
+  Template,
+} from '@/core/types';
+import { createDefaultTheme, createSeedProject } from '@/core/engine/seedData';
+import { parseScreenplayText } from '@/core/engine/scriptParser';
+import {
+  deleteCustomTemplateFromIndexedDb,
+  deleteProjectFromIndexedDb,
+  listCustomTemplates,
+  listSavedProjects,
+  loadLatestProjectForPlatform,
+  saveCustomTemplateToIndexedDb,
+  saveProjectToIndexedDb,
+} from '@/core/storage/indexedDb';
+import type { TemplateCategory } from '@/core/types';
+import { GENERATOR_MAP } from '@/core/registry/generators';
+
+export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
+
+const MAX_HISTORY = 50;
+
+export interface StudioStore {
+  project: Project;
+  past: Project[];
+  future: Project[];
+  savedProjects: Project[];
+  customTemplates: Template[];
+  saveStatus: SaveStatus;
+  lastSavedAt: string | null;
+  isHydrating: boolean;
+  mutationVersion: number;
+  errorMessage: string | null;
+
+  ui: {
+    selectedMessageId: string | null;
+    activeTab: 'messages' | 'participants' | 'appearance' | 'timeline';
+    mobileDrawerOpen: boolean;
+    isTimelineOpen: boolean;
+    isPlayingTimeline: boolean;
+    timelineVisibleCount: number;
+    previewMode: boolean;
+    isTypingPreview: boolean;
+  };
+
+  initPlatform: (platformId: string) => Promise<void>;
+  switchPlatformInPlace: (platformId: string) => void;
+  setProjectTitle: (title: string) => void;
+  saveNow: () => Promise<void>;
+  refreshSavedProjects: () => Promise<void>;
+  duplicateCurrentProject: () => Promise<Project>;
+  restoreProjectById: (projectId: string) => Promise<void>;
+  deleteSavedProject: (projectId: string) => Promise<void>;
+  resetToSeed: () => void;
+  clearAllMessages: () => void;
+  loadProject: (project: Project) => void;
+
+  undo: () => void;
+  redo: () => void;
+
+  addMessage: (input: {
+    senderId: string;
+    type?: MessageType;
+    text: string;
+    timestampLabel?: string;
+    readStatus?: ReadReceiptStatus;
+    voiceDurationSeconds?: number;
+    imageDataUrl?: string;
+    replyToMessageId?: string;
+    callOutcome?: 'answered' | 'missed' | 'declined' | 'cancelled';
+    callMedia?: 'voice' | 'video';
+    storyAuthorHandle?: string;
+    docFileName?: string;
+    locationPlace?: string;
+    contactName?: string;
+  }) => void;
+  updateMessage: (messageId: string, patch: Partial<Message>) => void;
+  duplicateMessage: (messageId: string) => void;
+  switchMessageSender: (messageId: string, nextSenderId?: string) => void;
+  deleteMessage: (messageId: string) => void;
+  moveMessage: (messageId: string, direction: 'up' | 'down') => void;
+  toggleMessageReaction: (messageId: string, emoji: string) => void;
+
+  upsertParticipant: (participant: Participant) => void;
+  deleteParticipant: (participantId: string) => void;
+  setSelfParticipant: (participantId: string) => void;
+  updateHeaderState: (patch: Partial<Conversation['headerState']>) => void;
+  updateGroupMeta: (patch: Partial<NonNullable<Conversation['groupMeta']>>) => void;
+  updatePostMeta: (patch: Partial<NonNullable<Conversation['postMeta']>>) => void;
+  updateStorySlide: (
+    slideIndex: number,
+    patch: Partial<NonNullable<Conversation['storyMeta']>['slides'][number]>
+  ) => void;
+  setActiveStorySlide: (index: number) => void;
+  updateCallMeta: (patch: Partial<NonNullable<Conversation['callMeta']>>) => void;
+
+  updateTheme: (patch: Partial<PlatformTheme>) => void;
+  updateStatusBar: (patch: Partial<PlatformTheme['statusBar']>) => void;
+  setDeviceFrame: (frame: DeviceFramePreset) => void;
+  setExportFormat: (format: ExportFormat) => void;
+  setExportScale: (scale: 1 | 2 | 3) => void;
+  setBackgroundMode: (mode: 'platform' | 'transparent' | 'solid') => void;
+  setCustomDimensions: (enabled: boolean, widthPx?: number, heightPx?: number) => void;
+  setSafetyBadge: (enabled: boolean) => void;
+
+  applyTemplate: (template: Template) => void;
+  saveCurrentAsTemplate: (
+    title: string,
+    category: TemplateCategory,
+    description: string
+  ) => Promise<Template>;
+  duplicateTemplate: (template: Template) => Promise<Template>;
+  updateCustomTemplate: (template: Template) => Promise<void>;
+  deleteCustomTemplate: (templateId: string) => Promise<void>;
+  importScreenplay: (rawText: string) => { importedCount: number; warnings: string[] };
+
+  setSelectedMessageId: (id: string | null) => void;
+  setActiveTab: (tab: StudioStore['ui']['activeTab']) => void;
+  setMobileDrawerOpen: (open: boolean) => void;
+  setTimelineOpen: (open: boolean) => void;
+  setPreviewMode: (preview: boolean) => void;
+  setTypingPreview: (typing: boolean) => void;
+  playTimeline: () => void;
+  pauseTimeline: () => void;
+  resetTimeline: () => void;
+  stepTimelineForward: () => void;
+  setTimelineDelayMs: (ms: number) => void;
+  updateVideoOptions: (
+    patch: Partial<NonNullable<Project['timeline']['videoOptions']>>
+  ) => void;
+  clearError: () => void;
+}
+
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function updateActiveConversation(
+  project: Project,
+  updater: (conv: Conversation) => Conversation
+): Project {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    conversations: project.conversations.map((c) =>
+      c.id === project.activeConversationId ? updater(c) : c
+    ),
+  };
+}
+
+export function getActiveConversation(project: Project): Conversation {
+  return (
+    project.conversations.find((c) => c.id === project.activeConversationId) ??
+    project.conversations[0]
+  );
+}
+
+export const useStudioStore = create<StudioStore>((set, get) => {
+  const commitMutation = (mutator: (prev: Project) => Project) => {
+    const { project, past, mutationVersion } = get();
+    const nextProject = mutator(project);
+    const nextPast = [...past, project].slice(-MAX_HISTORY);
+
+    set({
+      project: nextProject,
+      past: nextPast,
+      future: [],
+      saveStatus: 'unsaved',
+      mutationVersion: mutationVersion + 1,
+    });
+
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      void get().saveNow();
+    }, 350);
+  };
+
+  return {
+    project: createSeedProject('whatsapp-chat'),
+    past: [],
+    future: [],
+    savedProjects: [],
+    customTemplates: [],
+    saveStatus: 'saved',
+    lastSavedAt: null,
+    isHydrating: false,
+    mutationVersion: 0,
+    errorMessage: null,
+
+    ui: {
+      selectedMessageId: null,
+      activeTab: 'messages',
+      mobileDrawerOpen: false,
+      isTimelineOpen: false,
+      isPlayingTimeline: false,
+      timelineVisibleCount: 999,
+      previewMode: false,
+      isTypingPreview: false,
+    },
+
+    initPlatform: async (platformId) => {
+      const startMutationVersion = get().mutationVersion;
+      const startPlatformId = get().project.platformId;
+      set({ isHydrating: true, errorMessage: null });
+      try {
+        const stored = await loadLatestProjectForPlatform(platformId);
+        const initial = stored ?? createSeedProject(platformId);
+        const [allSaved, allCustomTemplates] = await Promise.all([
+          listSavedProjects(),
+          listCustomTemplates(),
+        ]);
+
+        // Never overwrite edits made by the user while IndexedDB was loading
+        if (
+          get().mutationVersion !== startMutationVersion &&
+          startPlatformId === platformId
+        ) {
+          set({
+            savedProjects: allSaved,
+            customTemplates: allCustomTemplates,
+            isHydrating: false,
+          });
+          return;
+        }
+
+        set({
+          project: initial,
+          past: [],
+          future: [],
+          savedProjects: allSaved,
+          customTemplates: allCustomTemplates,
+          saveStatus: 'saved',
+          lastSavedAt: initial.updatedAt,
+          isHydrating: false,
+          ui: {
+            ...get().ui,
+            selectedMessageId: null,
+            timelineVisibleCount: 999,
+            isPlayingTimeline: false,
+          },
+        });
+      } catch (err) {
+        const fallback = createSeedProject(platformId);
+        set({
+          project: fallback,
+          isHydrating: false,
+          saveStatus: 'error',
+          errorMessage:
+            err instanceof Error ? err.message : 'Unable to load local draft.',
+        });
+      }
+    },
+
+    switchPlatformInPlace: (platformId) => {
+      const manifest = GENERATOR_MAP[platformId];
+      if (!manifest) return;
+      const seedForTarget = createSeedProject(platformId);
+      const current = get().project;
+      const currentConv = getActiveConversation(current);
+
+      const canPreserveDialogue =
+        current.archetype === 'chat_thread' &&
+        manifest.capabilities.archetype === 'chat_thread' &&
+        currentConv.messages.length > 0;
+
+      commitMutation((prev) => {
+        if (!canPreserveDialogue) {
+          return {
+            ...seedForTarget,
+            id: `proj_${platformId}_${Date.now()}`,
+            cast: prev.cast.length > 0 ? prev.cast : seedForTarget.cast,
+          };
+        }
+        return {
+          ...prev,
+          platformId,
+          archetype: manifest.capabilities.archetype,
+          title: `${manifest.shortName} Draft`,
+          theme: {
+            ...createDefaultTheme(platformId),
+            colorScheme: prev.theme.colorScheme,
+            safetyBadge: prev.theme.safetyBadge,
+          },
+          conversations: prev.conversations.map((c) =>
+            c.id === prev.activeConversationId
+              ? {
+                  ...c,
+                  platformId,
+                  mode:
+                    platformId === 'whatsapp-group-chat' || platformId === 'discord-chat'
+                      ? 'group'
+                      : 'direct',
+                  groupMeta:
+                    platformId === 'whatsapp-group-chat' || platformId === 'discord-chat'
+                      ? c.groupMeta ?? {
+                          groupName:
+                            platformId === 'discord-chat'
+                              ? '#general'
+                              : 'Group Conversation',
+                          showSenderNamesInBubbles: true,
+                          showSenderAvatarsInBubbles: true,
+                        }
+                      : undefined,
+                }
+              : c
+          ),
+        };
+      });
+    },
+
+    setProjectTitle: (title) =>
+      commitMutation((prev) => ({
+        ...prev,
+        title,
+        updatedAt: new Date().toISOString(),
+      })),
+
+    saveNow: async () => {
+      const { project } = get();
+      set({ saveStatus: 'saving' });
+      try {
+        await saveProjectToIndexedDb(project);
+        const allSaved = await listSavedProjects();
+        set({
+          saveStatus: 'saved',
+          savedProjects: allSaved,
+          lastSavedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        set({
+          saveStatus: 'error',
+          errorMessage:
+            err instanceof Error ? err.message : 'Failed to save draft locally.',
+        });
+      }
+    },
+
+    refreshSavedProjects: async () => {
+      const allSaved = await listSavedProjects();
+      set({ savedProjects: allSaved });
+    },
+
+    duplicateCurrentProject: async () => {
+      const { project } = get();
+      const now = new Date().toISOString();
+      const copy: Project = {
+        ...JSON.parse(JSON.stringify(project)),
+        id: `proj_${project.platformId}_${Date.now()}`,
+        title: `${project.title} (Copy)`,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await saveProjectToIndexedDb(copy);
+      const allSaved = await listSavedProjects();
+      set({
+        project: copy,
+        past: [],
+        future: [],
+        savedProjects: allSaved,
+        saveStatus: 'saved',
+        lastSavedAt: now,
+      });
+      return copy;
+    },
+
+    restoreProjectById: async (projectId) => {
+      const allSaved = await listSavedProjects();
+      const found = allSaved.find((p) => p.id === projectId);
+      if (!found) return;
+      await saveProjectToIndexedDb(found);
+      set({
+        project: found,
+        past: [],
+        future: [],
+        savedProjects: allSaved,
+        saveStatus: 'saved',
+        lastSavedAt: found.updatedAt,
+        ui: {
+          ...get().ui,
+          selectedMessageId: null,
+          timelineVisibleCount: 999,
+        },
+      });
+    },
+
+    deleteSavedProject: async (projectId) => {
+      await deleteProjectFromIndexedDb(projectId);
+      const allSaved = await listSavedProjects();
+      set({ savedProjects: allSaved });
+    },
+
+    resetToSeed: () => {
+      const platformId = get().project.platformId;
+      commitMutation(() => createSeedProject(platformId));
+    },
+
+    clearAllMessages: () => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          messages: [],
+        }))
+      );
+    },
+
+    loadProject: (loaded) => {
+      commitMutation(() => ({
+        ...loaded,
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+
+    undo: () => {
+      const { past, project, future } = get();
+      if (past.length === 0) return;
+      const previous = past[past.length - 1];
+      set({
+        project: previous,
+        past: past.slice(0, -1),
+        future: [project, ...future].slice(0, MAX_HISTORY),
+        saveStatus: 'unsaved',
+      });
+    },
+
+    redo: () => {
+      const { past, project, future } = get();
+      if (future.length === 0) return;
+      const next = future[0];
+      set({
+        project: next,
+        past: [...past, project].slice(-MAX_HISTORY),
+        future: future.slice(1),
+        saveStatus: 'unsaved',
+      });
+    },
+
+    addMessage: (input) => {
+      const id = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const msgType = input.type ?? 'text';
+      const attachments: Message['attachments'] = [];
+
+      if (msgType === 'voice_note') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'voice_note',
+          durationSeconds: input.voiceDurationSeconds ?? 12,
+          voiceNoteMeta: {
+            waveformPeaks: [
+              0.3, 0.7, 0.5, 0.9, 0.65, 0.4, 0.85, 0.6, 0.5, 0.95, 0.7, 0.45,
+              0.8, 0.55, 0.35, 0.6,
+            ],
+            playbackSpeed: '1x',
+            isListened: false,
+          },
+        });
+      } else if (msgType === 'image') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'image',
+          previewDataUrl: input.imageDataUrl,
+          caption: input.text,
+        });
+      } else if (msgType === 'document') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'document',
+          fileName: input.docFileName || input.text || 'Project-Brief-v2.pdf',
+          fileSizeBytes: 1420000,
+          pageCount: 8,
+        });
+      } else if (msgType === 'location') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'location',
+          locationMeta: {
+            latitude: 37.7749,
+            longitude: -122.4194,
+            placeName: input.locationPlace || input.text || 'Market Street Studio',
+            address: 'San Francisco, CA',
+            isLiveLocation: true,
+          },
+        });
+      } else if (msgType === 'contact_card') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'contact_card',
+          contactCardMeta: {
+            fullName: input.contactName || input.text || 'Maya Lin',
+            phoneOrHandle: '+1 (415) 555-0194',
+          },
+        });
+      } else if (msgType === 'story_reply') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'story_reply',
+          storyReplyMeta: {
+            authorHandle: input.storyAuthorHandle || '@mayalin.creates',
+            storyLabel: `Replied to ${input.storyAuthorHandle || '@mayalin.creates'}'s story`,
+          },
+        });
+      } else if (msgType === 'shared_post') {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'shared_post',
+          sharedPostMeta: {
+            authorHandle: input.storyAuthorHandle || '@creator.studio',
+            captionSnippet: input.text || 'Check out this new mockup reel!',
+            isReel: true,
+          },
+        });
+      }
+
+      const newMessage: Message = {
+        id,
+        senderId: msgType === 'system' || msgType === 'date_separator' ? 'system' : input.senderId,
+        type: msgType,
+        text: input.text,
+        replyToMessageId: input.replyToMessageId || undefined,
+        timestampLabel:
+          input.timestampLabel ??
+          new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        attachments,
+        reactions: [],
+        readReceipt: { status: input.readStatus ?? 'read' },
+        callEvent:
+          msgType === 'call_event'
+            ? {
+                media: input.callMedia ?? 'voice',
+                outcome: input.callOutcome ?? 'missed',
+                durationLabel:
+                  input.callOutcome === 'answered' ? '4 mins' : undefined,
+              }
+            : undefined,
+        pollData:
+          msgType === 'poll'
+            ? {
+                question: input.text || 'Where should we meet?',
+                allowMultiple: false,
+                options: [
+                  { id: 'opt_1', label: 'Studio Downtown', voteCount: 4, votedBySelf: true },
+                  { id: 'opt_2', label: 'Coffee Bar', voteCount: 2 },
+                ],
+              }
+            : undefined,
+      };
+
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          messages: [...conv.messages, newMessage],
+        }))
+      );
+    },
+
+    updateMessage: (messageId, patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          messages: conv.messages.map((m) =>
+            m.id === messageId ? { ...m, ...patch } : m
+          ),
+        }))
+      );
+    },
+
+    duplicateMessage: (messageId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          const idx = conv.messages.findIndex((m) => m.id === messageId);
+          if (idx === -1) return conv;
+          const orig = conv.messages[idx];
+          const clone: Message = {
+            ...JSON.parse(JSON.stringify(orig)),
+            id: `msg_dup_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          };
+          const next = [...conv.messages];
+          next.splice(idx + 1, 0, clone);
+          return { ...conv, messages: next };
+        })
+      );
+    },
+
+    switchMessageSender: (messageId, nextSenderId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          const speakers = prev.cast.map((p) => p.id);
+          if (speakers.length === 0) return conv;
+          return {
+            ...conv,
+            messages: conv.messages.map((m) => {
+              if (m.id !== messageId || m.senderId === 'system') return m;
+              if (nextSenderId && speakers.includes(nextSenderId)) {
+                return { ...m, senderId: nextSenderId };
+              }
+              const currIdx = speakers.indexOf(m.senderId);
+              const nextIdx = currIdx === -1 ? 0 : (currIdx + 1) % speakers.length;
+              return { ...m, senderId: speakers[nextIdx] };
+            }),
+          };
+        })
+      );
+    },
+
+    deleteMessage: (messageId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          messages: conv.messages.filter((m) => m.id !== messageId),
+        }))
+      );
+    },
+
+    moveMessage: (messageId, direction) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          const idx = conv.messages.findIndex((m) => m.id === messageId);
+          if (idx === -1) return conv;
+          const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+          if (targetIdx < 0 || targetIdx >= conv.messages.length) return conv;
+          const nextMsgs = [...conv.messages];
+          const [removed] = nextMsgs.splice(idx, 1);
+          nextMsgs.splice(targetIdx, 0, removed);
+          return { ...conv, messages: nextMsgs };
+        })
+      );
+    },
+
+    toggleMessageReaction: (messageId, emoji) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          messages: conv.messages.map((m) => {
+            if (m.id !== messageId) return m;
+            const existing = m.reactions.find((r) => r.emoji === emoji);
+            if (existing) {
+              return {
+                ...m,
+                reactions: m.reactions.filter((r) => r.emoji !== emoji),
+              };
+            }
+            return {
+              ...m,
+              reactions: [
+                ...m.reactions,
+                { emoji, participantIds: [conv.selfParticipantId], count: 1 },
+              ],
+            };
+          }),
+        }))
+      );
+    },
+
+    upsertParticipant: (participant) => {
+      commitMutation((prev) => {
+        const exists = prev.cast.some((p) => p.id === participant.id);
+        const nextCast = exists
+          ? prev.cast.map((p) => (p.id === participant.id ? participant : p))
+          : [...prev.cast, participant];
+
+        const active = getActiveConversation(prev);
+        const hasParticipant = active.participantIds.includes(participant.id);
+
+        return {
+          ...prev,
+          updatedAt: new Date().toISOString(),
+          cast: nextCast,
+          conversations: prev.conversations.map((c) =>
+            c.id === prev.activeConversationId && !hasParticipant
+              ? { ...c, participantIds: [...c.participantIds, participant.id] }
+              : c
+          ),
+        };
+      });
+    },
+
+    deleteParticipant: (participantId) => {
+      commitMutation((prev) => {
+        const active = getActiveConversation(prev);
+        if (active.selfParticipantId === participantId || prev.cast.length <= 2) {
+          return prev;
+        }
+        return {
+          ...prev,
+          updatedAt: new Date().toISOString(),
+          cast: prev.cast.filter((p) => p.id !== participantId),
+          conversations: prev.conversations.map((c) =>
+            c.id === prev.activeConversationId
+              ? {
+                  ...c,
+                  participantIds: c.participantIds.filter((id) => id !== participantId),
+                }
+              : c
+          ),
+        };
+      });
+    },
+
+    setSelfParticipant: (participantId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          selfParticipantId: participantId,
+        }))
+      );
+    },
+
+    updateHeaderState: (patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          headerState: { ...conv.headerState, ...patch },
+        }))
+      );
+    },
+
+    updateGroupMeta: (patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          groupMeta: {
+            groupName: conv.groupMeta?.groupName ?? 'Group Chat',
+            showSenderNamesInBubbles: conv.groupMeta?.showSenderNamesInBubbles ?? true,
+            showSenderAvatarsInBubbles:
+              conv.groupMeta?.showSenderAvatarsInBubbles ?? true,
+            ...conv.groupMeta,
+            ...patch,
+          },
+        }))
+      );
+    },
+
+    updatePostMeta: (patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) =>
+          conv.postMeta
+            ? { ...conv, postMeta: { ...conv.postMeta, ...patch } }
+            : conv
+        )
+      );
+    },
+
+    updateStorySlide: (slideIndex, patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.storyMeta) return conv;
+          return {
+            ...conv,
+            storyMeta: {
+              ...conv.storyMeta,
+              slides: conv.storyMeta.slides.map((s, idx) =>
+                idx === slideIndex ? { ...s, ...patch } : s
+              ),
+            },
+          };
+        })
+      );
+    },
+
+    setActiveStorySlide: (index) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) =>
+          conv.storyMeta
+            ? {
+                ...conv,
+                storyMeta: {
+                  ...conv.storyMeta,
+                  activeSlideIndex: Math.max(
+                    0,
+                    Math.min(index, conv.storyMeta.slides.length - 1)
+                  ),
+                },
+              }
+            : conv
+        )
+      );
+    },
+
+    updateCallMeta: (patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) =>
+          conv.callMeta
+            ? { ...conv, callMeta: { ...conv.callMeta, ...patch } }
+            : conv
+        )
+      );
+    },
+
+    updateTheme: (patch) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        theme: { ...prev.theme, ...patch },
+      }));
+    },
+
+    updateStatusBar: (patch) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        theme: {
+          ...prev.theme,
+          statusBar: { ...prev.theme.statusBar, ...patch },
+        },
+      }));
+    },
+
+    setDeviceFrame: (deviceFrame) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        exportSettings: { ...prev.exportSettings, deviceFrame },
+      }));
+    },
+
+    setExportFormat: (format) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        exportSettings: { ...prev.exportSettings, format },
+      }));
+    },
+
+    setExportScale: (scaleFactor) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        exportSettings: { ...prev.exportSettings, scaleFactor },
+      }));
+    },
+
+    setBackgroundMode: (backgroundMode) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        exportSettings: { ...prev.exportSettings, backgroundMode },
+      }));
+    },
+
+    setCustomDimensions: (useCustomDimensions, customWidthPx, customHeightPx) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        exportSettings: {
+          ...prev.exportSettings,
+          useCustomDimensions,
+          customWidthPx: customWidthPx ?? prev.exportSettings.customWidthPx ?? 1080,
+          customHeightPx: customHeightPx ?? prev.exportSettings.customHeightPx ?? 1350,
+        },
+      }));
+    },
+
+    setSafetyBadge: (enabled) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        theme: {
+          ...prev.theme,
+          safetyBadge: { ...prev.theme.safetyBadge, enabled },
+        },
+      }));
+    },
+
+    saveCurrentAsTemplate: async (title, category, description) => {
+      const { project } = get();
+      const conv = getActiveConversation(project);
+      const roles = project.cast.map((p, idx) => ({
+        roleKey: p.id,
+        defaultName: p.displayName,
+        isSelf: p.id === conv.selfParticipantId || idx === 0,
+        verifiedBadge: p.verifiedBadge,
+      }));
+      const tpl: Template = {
+        id: `tpl_custom_${Date.now()}`,
+        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        title: title.trim() || `${project.title} Template`,
+        category,
+        description: description.trim() || 'Saved custom template.',
+        isCustom: true,
+        supportedArchetypes: [project.archetype],
+        roles,
+        scriptMessages: conv.messages.map((m) => ({
+          roleKey: m.senderId === 'system' ? roles[0]?.roleKey ?? 'self' : m.senderId,
+          type: m.type,
+          text: m.text ?? '',
+          timestampLabel: m.timestampLabel,
+          readStatus: m.readReceipt.status,
+        })),
+      };
+      await saveCustomTemplateToIndexedDb(tpl);
+      const list = await listCustomTemplates();
+      set({ customTemplates: list });
+      return tpl;
+    },
+
+    duplicateTemplate: async (template) => {
+      const dup: Template = {
+        ...JSON.parse(JSON.stringify(template)),
+        id: `tpl_custom_${Date.now()}`,
+        title: `${template.title} (Copy)`,
+        isCustom: true,
+      };
+      await saveCustomTemplateToIndexedDb(dup);
+      const list = await listCustomTemplates();
+      set({ customTemplates: list });
+      return dup;
+    },
+
+    updateCustomTemplate: async (template) => {
+      await saveCustomTemplateToIndexedDb({ ...template, isCustom: true });
+      const list = await listCustomTemplates();
+      set({ customTemplates: list });
+    },
+
+    deleteCustomTemplate: async (templateId) => {
+      await deleteCustomTemplateFromIndexedDb(templateId);
+      const list = await listCustomTemplates();
+      set({ customTemplates: list });
+    },
+
+    applyTemplate: (template) => {
+      const colors = ['#4F46E5', '#059669', '#2563EB', '#DB2777', '#D97706'];
+      const newParticipants: Participant[] = template.roles.map((r, i) => ({
+        id: `part_tpl_${r.roleKey}`,
+        displayName: r.defaultName,
+        avatarFallbackColor: colors[i % colors.length],
+        nameColorHex: colors[i % colors.length],
+        verifiedBadge: r.verifiedBadge ?? 'none',
+        isSelfDefault: r.isSelf,
+      }));
+
+      const selfPart =
+        newParticipants.find((p) => p.isSelfDefault) ?? newParticipants[0];
+
+      const newMessages: Message[] = template.scriptMessages.map((sm, idx) => ({
+        id: `msg_tpl_${Date.now()}_${idx}`,
+        senderId: `part_tpl_${sm.roleKey}`,
+        type: sm.type,
+        text: sm.text,
+        timestampLabel: sm.timestampLabel,
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: sm.readStatus ?? 'read' },
+      }));
+
+      commitMutation((prev) => ({
+        ...prev,
+        title: template.title,
+        cast: newParticipants,
+        conversations: prev.conversations.map((c) =>
+          c.id === prev.activeConversationId
+            ? {
+                ...c,
+                participantIds: newParticipants.map((p) => p.id),
+                selfParticipantId: selfPart.id,
+                messages: newMessages,
+              }
+            : c
+        ),
+      }));
+    },
+
+    importScreenplay: (rawText) => {
+      const parsed = parseScreenplayText(rawText);
+      if (parsed.messages.length === 0) {
+        return { importedCount: 0, warnings: parsed.warnings };
+      }
+
+      const colors = ['#4F46E5', '#059669', '#2563EB', '#DB2777', '#D97706'];
+      const participantByName = new Map<string, Participant>();
+
+      parsed.participants.forEach((p, idx) => {
+        const id = `part_imp_${idx}_${Date.now()}`;
+        participantByName.set(p.name, {
+          id,
+          displayName: p.name,
+          avatarFallbackColor: colors[idx % colors.length],
+          nameColorHex: colors[idx % colors.length],
+          verifiedBadge: 'none',
+          isSelfDefault: p.isSelf,
+        });
+      });
+
+      const participants = Array.from(participantByName.values());
+      const selfPart = participants.find((p) => p.isSelfDefault) ?? participants[0];
+
+      const now = new Date();
+      const messages: Message[] = parsed.messages.map((m, idx) => {
+        const sender = participantByName.get(m.senderName);
+        const msgTime = new Date(now.getTime() + idx * 60000);
+        const timestampLabel = msgTime.toLocaleTimeString([], {
+          hour: 'numeric',
+          minute: '2-digit',
+        });
+
+        const attachments: Message['attachments'] =
+          m.type === 'voice_note'
+            ? [
+                {
+                  id: `att_imp_${idx}`,
+                  kind: 'voice_note',
+                  durationSeconds: m.durationSeconds ?? 10,
+                  voiceNoteMeta: {
+                    waveformPeaks: [
+                      0.3, 0.7, 0.45, 0.85, 0.6, 0.35, 0.9, 0.5, 0.75, 0.4, 0.65, 0.3,
+                    ],
+                    playbackSpeed: '1x',
+                    isListened: true,
+                  },
+                },
+              ]
+            : [];
+
+        return {
+          id: `msg_imp_${Date.now()}_${idx}`,
+          senderId: m.type === 'system' ? 'system' : sender?.id ?? selfPart.id,
+          type: m.type,
+          text: m.text,
+          timestampLabel: m.type === 'system' ? '' : timestampLabel,
+          attachments,
+          reactions: [],
+          readReceipt: { status: 'read' },
+        };
+      });
+
+      commitMutation((prev) => ({
+        ...prev,
+        cast: participants,
+        conversations: prev.conversations.map((c) =>
+          c.id === prev.activeConversationId
+            ? {
+                ...c,
+                participantIds: participants.map((p) => p.id),
+                selfParticipantId: selfPart?.id ?? c.selfParticipantId,
+                messages,
+              }
+            : c
+        ),
+      }));
+
+      return { importedCount: messages.length, warnings: parsed.warnings };
+    },
+
+    setSelectedMessageId: (id) =>
+      set((s) => ({ ui: { ...s.ui, selectedMessageId: id } })),
+    setActiveTab: (activeTab) =>
+      set((s) => ({ ui: { ...s.ui, activeTab } })),
+    setMobileDrawerOpen: (mobileDrawerOpen) =>
+      set((s) => ({ ui: { ...s.ui, mobileDrawerOpen } })),
+    setTimelineOpen: (isTimelineOpen) =>
+      set((s) => ({ ui: { ...s.ui, isTimelineOpen } })),
+    setPreviewMode: (previewMode) =>
+      set((s) => ({ ui: { ...s.ui, previewMode } })),
+    setTypingPreview: (isTypingPreview) =>
+      set((s) => ({ ui: { ...s.ui, isTypingPreview } })),
+    playTimeline: () => {
+      const conv = getActiveConversation(get().project);
+      const currentCount = get().ui.timelineVisibleCount;
+      const startCount =
+        currentCount >= conv.messages.length ? 1 : Math.max(1, currentCount);
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          isTimelineOpen: true,
+          isPlayingTimeline: true,
+          timelineVisibleCount: startCount,
+        },
+      }));
+    },
+    pauseTimeline: () =>
+      set((s) => ({ ui: { ...s.ui, isPlayingTimeline: false } })),
+    resetTimeline: () =>
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          isPlayingTimeline: false,
+          timelineVisibleCount: 999,
+        },
+      })),
+    stepTimelineForward: () => {
+      const conv = getActiveConversation(get().project);
+      const curr = get().ui.timelineVisibleCount;
+      if (curr >= conv.messages.length) {
+        set((s) => ({
+          ui: { ...s.ui, isPlayingTimeline: false, timelineVisibleCount: conv.messages.length },
+        }));
+        return;
+      }
+      set((s) => ({
+        ui: { ...s.ui, timelineVisibleCount: curr + 1 },
+      }));
+    },
+    setTimelineDelayMs: (defaultMessageDelayMs) =>
+      commitMutation((prev) => ({
+        ...prev,
+        timeline: { ...prev.timeline, defaultMessageDelayMs },
+      })),
+    updateVideoOptions: (patch) =>
+      commitMutation((prev) => ({
+        ...prev,
+        timeline: {
+          ...prev.timeline,
+          videoOptions: {
+            aspectRatio: prev.timeline.videoOptions?.aspectRatio ?? '9:16',
+            backgroundCss:
+              prev.timeline.videoOptions?.backgroundCss ??
+              'linear-gradient(135deg, #0f172a 0%, #312e81 55%, #1e1b4b 100%)',
+            showKeyboard: prev.timeline.videoOptions?.showKeyboard ?? false,
+            simulateVoicePlayback:
+              prev.timeline.videoOptions?.simulateVoicePlayback ?? true,
+            perMessageDelays: prev.timeline.videoOptions?.perMessageDelays ?? {},
+            ...patch,
+          },
+        },
+      })),
+    clearError: () => set({ errorMessage: null }),
+  };
+});

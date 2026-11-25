@@ -1,0 +1,26 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# Next.js build outputs
+/.next/
+/out/
+/build
+
+# TypeScript & test artifacts
+*.tsbuildinfo
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Environment variables
+.env
+.env*.local
+
+# OS & logs
+.DS_Store
+*.log
+npm-debug.log*
