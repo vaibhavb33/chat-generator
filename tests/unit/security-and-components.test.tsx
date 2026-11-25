@@ -108,6 +108,14 @@ describe('Component Tests (React Testing Library)', () => {
     const moreBtn = screen.getByRole('button', { name: 'more' });
     fireEvent.click(moreBtn);
     expect(screen.getByText(/#CreatorTools/i)).toBeTruthy();
+
+    // Verify carousel slide badge and location
+    expect(screen.getByTestId('carousel-counter-badge')).toBeTruthy();
+    expect(screen.getByText('1/3')).toBeTruthy();
+    expect(screen.getByText(/San Francisco, California/i)).toBeTruthy();
+
+    // Verify pinned comment
+    expect(screen.getByText(/Pinned/i)).toBeTruthy();
   });
 
   it('renders GeneratorDirectory and filters by category', () => {

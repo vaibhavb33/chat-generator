@@ -9,6 +9,7 @@ import type {
   MessageType,
   Participant,
   PlatformTheme,
+  PostCarouselSlide,
   Project,
   ReadReceiptStatus,
   StoryElement,
@@ -71,6 +72,7 @@ export interface StudioStore {
   redo: () => void;
 
   addMessage: (input: {
+    id?: string;
     senderId: string;
     type?: MessageType;
     text: string;
@@ -86,6 +88,9 @@ export interface StudioStore {
     docFileName?: string;
     locationPlace?: string;
     contactName?: string;
+    isPinned?: boolean;
+    commentLikes?: number;
+    reactions?: Message['reactions'];
   }) => void;
   updateMessage: (messageId: string, patch: Partial<Message>) => void;
   duplicateMessage: (messageId: string) => void;
@@ -104,6 +109,19 @@ export interface StudioStore {
   updateHeaderState: (patch: Partial<Conversation['headerState']>) => void;
   updateGroupMeta: (patch: Partial<NonNullable<Conversation['groupMeta']>>) => void;
   updatePostMeta: (patch: Partial<NonNullable<Conversation['postMeta']>>) => void;
+  addPostCarouselSlide: (slide: PostCarouselSlide) => void;
+  deletePostCarouselSlide: (slideIndex: number) => void;
+  updatePostCarouselSlide: (
+    slideIndex: number,
+    patch: Partial<PostCarouselSlide>
+  ) => void;
+  setActivePostCarouselSlide: (index: number) => void;
+  reorderPostCarouselSlide: (
+    slideIndex: number,
+    direction: 'up' | 'down'
+  ) => void;
+  toggleCommentPin: (messageId: string) => void;
+  toggleCommentLike: (messageId: string) => void;
   updateStorySlide: (
     slideIndex: number,
     patch: Partial<NonNullable<Conversation['storyMeta']>['slides'][number]>
@@ -476,7 +494,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
     },
 
     addMessage: (input) => {
-      const id = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const id = input.id ?? `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
       const msgType = input.type ?? 'text';
       const attachments: Message['attachments'] = [];
 
@@ -605,7 +623,9 @@ export const useStudioStore = create<StudioStore>((set, get) => {
           input.timestampLabel ??
           new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
         attachments,
-        reactions: [],
+        reactions: input.reactions ?? [],
+        isPinned: input.isPinned,
+        commentLikes: input.commentLikes,
         readReceipt: { status: input.readStatus ?? 'read' },
         callEvent:
           msgType === 'call_event'
@@ -927,6 +947,129 @@ export const useStudioStore = create<StudioStore>((set, get) => {
             ? { ...conv, postMeta: { ...conv.postMeta, ...patch } }
             : conv
         )
+      );
+    },
+
+    addPostCarouselSlide: (slide) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.postMeta) return conv;
+          const current = conv.postMeta.carouselImages ?? [];
+          const next = [...current, slide];
+          return {
+            ...conv,
+            postMeta: {
+              ...conv.postMeta,
+              carouselImages: next,
+              activeCarouselIndex: next.length - 1,
+            },
+          };
+        })
+      );
+    },
+
+    deletePostCarouselSlide: (slideIndex) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.postMeta || !conv.postMeta.carouselImages) return conv;
+          const next = conv.postMeta.carouselImages.filter((_, idx) => idx !== slideIndex);
+          const currentActive = conv.postMeta.activeCarouselIndex ?? 0;
+          const nextActive = Math.min(Math.max(0, currentActive >= slideIndex ? currentActive - 1 : currentActive), Math.max(0, next.length - 1));
+          return {
+            ...conv,
+            postMeta: {
+              ...conv.postMeta,
+              carouselImages: next,
+              activeCarouselIndex: nextActive,
+            },
+          };
+        })
+      );
+    },
+
+    updatePostCarouselSlide: (slideIndex, patch) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.postMeta || !conv.postMeta.carouselImages) return conv;
+          return {
+            ...conv,
+            postMeta: {
+              ...conv.postMeta,
+              carouselImages: conv.postMeta.carouselImages.map((s, idx) =>
+                idx === slideIndex ? { ...s, ...patch } : s
+              ),
+            },
+          };
+        })
+      );
+    },
+
+    setActivePostCarouselSlide: (index) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.postMeta) return conv;
+          return {
+            ...conv,
+            postMeta: {
+              ...conv.postMeta,
+              activeCarouselIndex: index,
+            },
+          };
+        })
+      );
+    },
+
+    reorderPostCarouselSlide: (slideIndex, direction) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          if (!conv.postMeta || !conv.postMeta.carouselImages) return conv;
+          const items = [...conv.postMeta.carouselImages];
+          const targetIndex = direction === 'up' ? slideIndex - 1 : slideIndex + 1;
+          if (targetIndex < 0 || targetIndex >= items.length) return conv;
+          const [moved] = items.splice(slideIndex, 1);
+          items.splice(targetIndex, 0, moved);
+          return {
+            ...conv,
+            postMeta: {
+              ...conv.postMeta,
+              carouselImages: items,
+              activeCarouselIndex: targetIndex,
+            },
+          };
+        })
+      );
+    },
+
+    toggleCommentPin: (messageId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          messages: conv.messages.map((m) =>
+            m.id === messageId ? { ...m, isPinned: !m.isPinned } : m
+          ),
+        }))
+      );
+    },
+
+    toggleCommentLike: (messageId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          messages: conv.messages.map((m) => {
+            if (m.id !== messageId) return m;
+            const currentLikes = m.commentLikes ?? 0;
+            const hasHeart = m.reactions.some((r) => r.emoji === '❤️');
+            const nextLikes = hasHeart ? Math.max(0, currentLikes - 1) : currentLikes + 1;
+            const nextReactions = hasHeart
+              ? m.reactions.filter((r) => r.emoji !== '❤️')
+              : [...m.reactions, { emoji: '❤️', participantIds: [conv.selfParticipantId], count: 1 }];
+            return {
+              ...m,
+              commentLikes: nextLikes,
+              reactions: nextReactions,
+            };
+          }),
+        }))
       );
     },
 

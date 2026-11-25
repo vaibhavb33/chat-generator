@@ -152,6 +152,8 @@ export interface Message {
   isDeleted?: boolean;
   isEdited?: boolean;
   isStarred?: boolean;
+  isPinned?: boolean;
+  commentLikes?: number;
   attachments: Attachment[];
   reactions: Reaction[];
   readReceipt: ReadReceipt;
@@ -234,6 +236,14 @@ export interface StorySlide {
   elements?: StoryElement[];
 }
 
+export interface PostCarouselSlide {
+  id: string;
+  imageDataUrl?: string;
+  imageGradient?: string;
+  alt?: string;
+  tagCount?: number;
+}
+
 export interface Conversation {
   id: string;
   title: string;
@@ -264,10 +274,12 @@ export interface Conversation {
   };
   postMeta?: {
     locationLabel?: string;
-    aspectRatio: '1:1' | '4:5';
+    aspectRatio: '1:1' | '4:5' | '16:9';
     caption: string;
     imageDataUrl?: string;
     imageGradient?: string;
+    carouselImages?: PostCarouselSlide[];
+    activeCarouselIndex?: number;
     simulateMoreCutoff: boolean;
     likeCount: number;
     commentCount: number;
@@ -275,6 +287,17 @@ export interface Conversation {
     isLikedBySelf: boolean;
     isBookmarkedBySelf: boolean;
     isSponsored?: boolean;
+    isVideo?: boolean;
+    videoDurationLabel?: string;
+    viewCount?: number;
+    objectFit?: 'cover' | 'contain';
+    musicTrack?: string;
+    musicArtist?: string;
+    taggedAccounts?: string[];
+    showTags?: boolean;
+    postTimestampLabel?: string;
+    likedByUsername?: string;
+    hasStoryRing?: boolean;
   };
   callMeta?: {
     callPlatform: 'ios-phone' | 'facetime' | 'whatsapp-voice' | 'whatsapp-video' | 'instagram-video';
