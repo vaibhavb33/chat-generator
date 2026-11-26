@@ -221,6 +221,47 @@ function drawRoundedRect(
   ctx.closePath();
 }
 
+function drawWallpaperLayer(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  project: Project,
+  canvasBg: string
+) {
+  const wp = project.theme.wallpaper;
+  ctx.fillStyle = canvasBg;
+  ctx.fillRect(x, y, w, h);
+
+  if (wp?.kind === 'solid' && wp.value) {
+    ctx.fillStyle = wp.value;
+    ctx.fillRect(x, y, w, h);
+  } else if (wp?.kind === 'gradient' && wp.value) {
+    const colors = wp.value.match(/#[0-9a-fA-F]{3,8}/g);
+    if (colors && colors.length >= 2) {
+      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+      grad.addColorStop(0, colors[0]);
+      grad.addColorStop(1, colors[colors.length - 1]);
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, w, h);
+    }
+  } else if (wp?.kind === 'default_pattern') {
+    // Subtle authentic chat wallpaper pattern
+    ctx.save();
+    ctx.globalAlpha = project.theme.colorScheme === 'dark' ? 0.045 : 0.055;
+    ctx.fillStyle = project.theme.colorScheme === 'dark' ? '#ffffff' : '#334155';
+    for (let px = x + 16; px < x + w; px += 34) {
+      for (let py = y + 16; py < y + h; py += 34) {
+        ctx.beginPath();
+        ctx.arc(px + ((py / 34) % 2) * 10, py, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+}
+
 function drawSceneFrame(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -231,11 +272,13 @@ function drawSceneFrame(
   visibleCount: number,
   showTyping: boolean,
   showKeyboard: boolean,
-  voiceProgress: number
+  voiceProgress: number,
+  typingPhase = 0
 ) {
   const palette = getPlatformVideoPalette(project);
   const isAndroid =
     project.theme.deviceType === 'android' || project.theme.osVariant === 'android';
+  const dark = project.theme.colorScheme === 'dark' || project.theme.colorScheme === 'dim';
   const bgCss = project.timeline.videoOptions?.backgroundCss ?? '';
 
   // Outer Studio Background
@@ -270,103 +313,164 @@ function drawSceneFrame(
   drawRoundedRect(ctx, cardX, cardY, cardW, cardH, isAndroid ? 24 : 34);
   ctx.clip();
 
-  ctx.fillStyle = palette.canvasBg;
-  ctx.fillRect(cardX, cardY, cardW, cardH);
+  // Status Bar + App Header
+  const statusH = 36;
+  const headerTop = cardY + statusH;
+  const headerH = 56;
+  const composerH = 50;
+  const kbH = showKeyboard && showTyping ? 124 : 0;
+  const feedTop = headerTop + headerH;
+  const feedBottom = cardY + cardH - composerH - kbH - 12;
+  const feedH = Math.max(120, feedBottom - feedTop);
 
-  // Status Bar + Cutout
-  const statusH = 34;
+  // Wallpaper inside chat feed
+  drawWallpaperLayer(ctx, cardX, feedTop, cardW, feedH + composerH + 12, project, palette.canvasBg);
+
   ctx.fillStyle = palette.headerBg;
-  ctx.fillRect(cardX, cardY, cardW, statusH + 56);
+  ctx.fillRect(cardX, cardY, cardW, statusH + headerH);
 
+  // Status Bar Icons & Time
   ctx.fillStyle = palette.headerText;
   ctx.font = `600 12px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
-  ctx.fillText(project.theme.statusBar.timeLabel || '9:41', cardX + 20, cardY + 22);
-  ctx.fillText(
-    `${project.theme.statusBar.carrierLabel || '5G'}  ${project.theme.statusBar.batteryPercent}%`,
-    cardX + cardW - 68,
-    cardY + 22
-  );
+  ctx.fillText(project.theme.statusBar.timeLabel || '9:41', cardX + 20, cardY + 23);
+
+  // Signal bars + Carrier + Battery
+  const rightBarX = cardX + cardW - 82;
+  for (let b = 0; b < 4; b++) {
+    ctx.globalAlpha = b < (project.theme.statusBar.signalBars ?? 4) ? 0.95 : 0.3;
+    ctx.fillRect(rightBarX + b * 4, cardY + 21 - b * 2, 2.5, 4 + b * 2);
+  }
+  ctx.globalAlpha = 1;
+  ctx.font = `600 10px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
+  ctx.fillText(project.theme.statusBar.carrierLabel || '5G', rightBarX + 20, cardY + 22);
+  // Battery outline + fill
+  drawRoundedRect(ctx, rightBarX + 40, cardY + 13, 20, 10, 2.5);
+  ctx.strokeStyle = palette.headerText;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  const batW = Math.max(2, Math.round((16 * (project.theme.statusBar.batteryPercent ?? 88)) / 100));
+  ctx.fillRect(rightBarX + 42, cardY + 15, batW, 6);
 
   // Dynamic Island vs Android Punch-Hole
   ctx.fillStyle = '#000000';
   if (isAndroid) {
     ctx.beginPath();
-    ctx.arc(cardX + cardW / 2, cardY + 17, 6, 0, Math.PI * 2);
+    ctx.arc(cardX + cardW / 2, cardY + 18, 5.5, 0, Math.PI * 2);
     ctx.fill();
   } else {
     drawRoundedRect(ctx, cardX + cardW / 2 - 38, cardY + 8, 76, 19, 10);
     ctx.fill();
   }
 
-  // App Header
-  const headerTop = cardY + statusH;
-  const headerH = 56;
+  // App Header (Back button, Avatar, Name, Status)
   const other =
     conv.participantIds
       .map((id) => participantsById[id])
       .find((p) => p && p.id !== conv.selfParticipantId) ?? project.cast[0];
 
   ctx.fillStyle = palette.headerText;
-  ctx.font = `700 15px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
-  ctx.fillText(
-    conv.groupMeta?.groupName || other?.displayName || 'ChatForge',
-    cardX + 20,
-    headerTop + 24
-  );
-  ctx.font = `12px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
+  ctx.font = `600 16px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
+  ctx.fillText(isAndroid ? '←' : '‹', cardX + 14, headerTop + 33);
+
+  // Avatar circle
+  const avatarX = cardX + 44;
+  const avatarY = headerTop + 28;
+  ctx.fillStyle = other?.avatarFallbackColor || palette.accent;
+  ctx.beginPath();
+  ctx.arc(avatarX, avatarY, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 13px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
+  const displayTitle = conv.groupMeta?.groupName || other?.displayName || 'ChatForge';
+  ctx.fillText(displayTitle.slice(0, 1).toUpperCase(), avatarX - 4.5, avatarY + 4.5);
+
+  ctx.fillStyle = palette.headerText;
+  ctx.font = `700 14.5px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
+  ctx.fillText(displayTitle.slice(0, 22), cardX + 68, headerTop + 24);
+  ctx.font = `11.5px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
   ctx.globalAlpha = 0.78;
   ctx.fillText(
     showTyping ? 'typing...' : conv.headerState.statusText || 'online',
-    cardX + 20,
-    headerTop + 42
+    cardX + 68,
+    headerTop + 41
   );
   ctx.globalAlpha = 1;
 
   // Messages + Auto-scroll
-  const kbH = showKeyboard && showTyping ? 130 : 0;
-  const feedTop = headerTop + headerH + 12;
-  const feedBottom = cardY + cardH - 36 - kbH;
-  const feedH = feedBottom - feedTop;
-
   const visibleMessages: Message[] = conv.messages.slice(0, visibleCount);
   ctx.font = `13px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
 
   const renderedBlocks = visibleMessages.map((m) => {
-    const lines = wrapLines(ctx, m.text || `[${m.type}]`, cardW * 0.68);
+    const isMedia = m.type === 'image' || m.type === 'video_preview' || m.type === 'link_preview';
+    const hasSenderLabel =
+      Boolean(conv.groupMeta?.showSenderNamesInBubbles) &&
+      m.senderId !== conv.selfParticipantId &&
+      m.type !== 'date_separator' &&
+      m.type !== 'system';
+    const lines = wrapLines(ctx, m.text || (isMedia ? m.attachments?.[0]?.caption || 'Photo attachment' : `[${m.type}]`), cardW * 0.64);
+    const mediaH = isMedia ? 72 : 0;
+    const reactionH = m.reactions?.length ? 12 : 0;
+    const senderH = hasSenderLabel ? 14 : 0;
     const blockH =
-      m.type === 'date_separator' ? 28 : Math.max(44, lines.length * 18 + 26);
-    return { m, lines, blockH };
+      m.type === 'date_separator' || m.type === 'system'
+        ? 28
+        : Math.max(44, senderH + mediaH + lines.length * 18 + 26);
+    return { m, lines, blockH, isMedia, hasSenderLabel, reactionH };
   });
 
   const typingH = showTyping ? 34 : 0;
-  const totalH = renderedBlocks.reduce((acc, b) => acc + b.blockH + 10, 0) + typingH;
+  const totalH =
+    renderedBlocks.reduce((acc, b) => acc + b.blockH + b.reactionH + 10, 0) + typingH + 12;
   const scrollOffset = Math.max(0, totalH - feedH);
 
-  let y = feedTop - scrollOffset;
+  let y = feedTop + 10 - scrollOffset;
   ctx.save();
   ctx.beginPath();
   ctx.rect(cardX, feedTop, cardW, feedH);
   ctx.clip();
 
-  for (const { m, lines, blockH } of renderedBlocks) {
+  for (const { m, lines, blockH, isMedia, hasSenderLabel, reactionH } of renderedBlocks) {
     if (m.type === 'date_separator' || m.type === 'system') {
       ctx.fillStyle = palette.otherBubble;
-      drawRoundedRect(ctx, cardX + cardW / 2 - 44, y, 88, 22, 8);
+      drawRoundedRect(ctx, cardX + cardW / 2 - 52, y, 104, 22, 8);
       ctx.fill();
       ctx.fillStyle = palette.otherText;
-      ctx.font = '11px sans-serif';
-      ctx.fillText((m.text || '').slice(0, 12), cardX + cardW / 2 - 18, y + 15);
+      ctx.font = '10.5px sans-serif';
+      const label = (m.text || '').slice(0, 16);
+      ctx.fillText(label, cardX + cardW / 2 - ctx.measureText(label).width / 2, y + 15);
       y += blockH + 10;
       continue;
     }
 
     const isSelf = m.senderId === conv.selfParticipantId;
-    const bubbleW = Math.min(cardW * 0.74, 260);
+    const bubbleW = Math.min(cardW * 0.74, 268);
     const bx = isSelf ? cardX + cardW - bubbleW - 14 : cardX + 14;
 
     ctx.fillStyle = isSelf ? palette.selfBubble : palette.otherBubble;
     drawRoundedRect(ctx, bx, y, bubbleW, blockH, 16);
     ctx.fill();
+
+    let contentY = y + 18;
+    if (hasSenderLabel) {
+      const sender = participantsById[m.senderId];
+      ctx.fillStyle = sender?.nameColorHex || palette.accent;
+      ctx.font = `600 11px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
+      ctx.fillText(sender?.displayName || m.senderId, bx + 12, contentY - 2);
+      contentY += 14;
+    }
+
+    if (isMedia) {
+      const gradMedia = ctx.createLinearGradient(bx + 10, contentY - 6, bx + bubbleW - 10, contentY + 60);
+      gradMedia.addColorStop(0, palette.accent);
+      gradMedia.addColorStop(1, dark ? '#1e293b' : '#cbd5e1');
+      ctx.fillStyle = gradMedia;
+      drawRoundedRect(ctx, bx + 10, contentY - 6, bubbleW - 20, 62, 10);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 11px sans-serif';
+      ctx.fillText(m.type === 'video_preview' ? '▶ Video Clip' : m.type === 'link_preview' ? '🔗 Link Preview' : '🖼 Photo', bx + 20, contentY + 29);
+      contentY += 68;
+    }
 
     ctx.fillStyle = isSelf ? palette.selfText : palette.otherText;
     if (m.type === 'voice_note') {
@@ -374,50 +478,94 @@ function drawSceneFrame(
       for (let i = 0; i < bars; i++) {
         const active = i / bars <= voiceProgress;
         ctx.fillStyle = active ? palette.accent : 'rgba(100,116,139,0.45)';
-        ctx.fillRect(bx + 14 + i * 12, y + 14, 6, 14);
+        const barH = 8 + ((i * 7) % 10);
+        ctx.fillRect(bx + 14 + i * 12, contentY - 2 + (14 - barH) / 2, 5, barH);
       }
     } else {
       ctx.font = `13px ${isAndroid ? 'Roboto, sans-serif' : '-apple-system, BlinkMacSystemFont, sans-serif'}`;
       lines.forEach((ln, li) => {
-        ctx.fillText(ln, bx + 12, y + 20 + li * 18);
+        ctx.fillText(ln, bx + 12, contentY + li * 18);
       });
     }
 
+    // Timestamp + Read Receipt
+    const receiptMark =
+      isSelf && m.readReceipt?.status === 'read'
+        ? ' ✓✓'
+        : isSelf && m.readReceipt?.status === 'delivered'
+          ? ' ✓✓'
+          : '';
+    const stampText = `${m.timestampLabel}${receiptMark}`;
     ctx.font = '10px sans-serif';
-    ctx.globalAlpha = 0.7;
-    ctx.fillText(
-      `${m.timestampLabel}${isSelf && m.readReceipt?.status === 'read' ? ' ✓✓' : ''}`,
-      bx + bubbleW - 64,
-      y + blockH - 8
-    );
+    ctx.fillStyle =
+      isSelf && m.readReceipt?.status === 'read'
+        ? '#38bdf8'
+        : isSelf
+          ? palette.selfText
+          : palette.otherText;
+    ctx.globalAlpha = isSelf && m.readReceipt?.status === 'read' ? 0.95 : 0.68;
+    const stampW = ctx.measureText(stampText).width;
+    ctx.fillText(stampText, bx + bubbleW - stampW - 10, y + blockH - 8);
     ctx.globalAlpha = 1;
-    y += blockH + 10;
+
+    // Reactions pill
+    if (m.reactions?.length) {
+      const rxSummary = m.reactions.map((r) => `${r.emoji}${r.count > 1 ? ` ${r.count}` : ''}`).join(' ');
+      const rxW = Math.max(30, ctx.measureText(rxSummary).width + 14);
+      ctx.fillStyle = dark ? '#1e293b' : '#ffffff';
+      drawRoundedRect(ctx, bx + 12, y + blockH - 6, rxW, 18, 9);
+      ctx.fill();
+      ctx.fillStyle = dark ? '#f8fafc' : '#0f172a';
+      ctx.font = '10.5px sans-serif';
+      ctx.fillText(rxSummary, bx + 19, y + blockH + 6);
+    }
+
+    y += blockH + reactionH + 10;
   }
 
   if (showTyping) {
     ctx.fillStyle = palette.otherBubble;
     drawRoundedRect(ctx, cardX + 14, y, 64, 28, 12);
     ctx.fill();
-    ctx.fillStyle = '#94a3b8';
-    ctx.beginPath();
-    ctx.arc(cardX + 30, y + 14, 3, 0, Math.PI * 2);
-    ctx.arc(cardX + 44, y + 14, 3, 0, Math.PI * 2);
-    ctx.arc(cardX + 58, y + 14, 3, 0, Math.PI * 2);
-    ctx.fill();
+    for (let d = 0; d < 3; d++) {
+      const activeDot = Math.floor(typingPhase * 3) % 3 === d;
+      ctx.fillStyle = activeDot ? palette.accent : '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(cardX + 30 + d * 14, y + (activeDot ? 12 : 15), 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.restore();
 
+  // Bottom Composer Bar
+  const composerY = cardY + cardH - composerH - kbH - 12;
+  ctx.fillStyle = dark ? '#111827' : '#f8fafc';
+  ctx.fillRect(cardX, composerY, cardW, composerH);
+  ctx.fillStyle = dark ? '#1f2937' : '#ffffff';
+  drawRoundedRect(ctx, cardX + 42, composerY + 9, cardW - 92, 32, 16);
+  ctx.fill();
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Message', cardX + 56, composerY + 29);
+  ctx.fillStyle = palette.accent;
+  ctx.beginPath();
+  ctx.arc(cardX + cardW - 26, composerY + 25, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('↑', cardX + cardW - 30, composerY + 29);
+
   // Optional Keyboard Overlay
   if (kbH > 0) {
-    ctx.fillStyle = project.theme.colorScheme === 'dark' ? '#1f2937' : '#d1d5db';
-    ctx.fillRect(cardX, cardY + cardH - kbH, cardW, kbH);
-    ctx.fillStyle = project.theme.colorScheme === 'dark' ? '#374151' : '#ffffff';
+    ctx.fillStyle = dark ? '#1f2937' : '#d1d5db';
+    ctx.fillRect(cardX, cardY + cardH - kbH - 12, cardW, kbH);
+    ctx.fillStyle = dark ? '#374151' : '#ffffff';
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 8; c++) {
         drawRoundedRect(
           ctx,
           cardX + 14 + c * 46,
-          cardY + cardH - kbH + 14 + r * 36,
+          cardY + cardH - kbH + r * 36,
           38,
           28,
           6
@@ -428,11 +576,11 @@ function drawSceneFrame(
   }
 
   // Bottom iOS Home Indicator vs Android Gesture Pill
-  ctx.fillStyle = project.theme.colorScheme === 'dark' ? 'rgba(255,255,255,0.75)' : 'rgba(15,23,42,0.7)';
+  ctx.fillStyle = dark ? 'rgba(255,255,255,0.75)' : 'rgba(15,23,42,0.7)';
   drawRoundedRect(
     ctx,
     cardX + cardW / 2 - (isAndroid ? 52 : 64),
-    cardY + cardH - 12,
+    cardY + cardH - 10,
     isAndroid ? 104 : 128,
     4,
     2
@@ -454,7 +602,7 @@ function drawSceneFrame(
 
 export async function exportAnimatedChatVideo(
   project: Project,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number, stage?: string) => void
 ): Promise<VideoExportResult> {
   const conv =
     project.conversations.find((c) => c.id === project.activeConversationId) ??
@@ -482,6 +630,7 @@ export async function exportAnimatedChatVideo(
   const { width, height } = getVideoDimensions(videoOpts.aspectRatio, safeResolution);
   const { mimeType, extension } = negotiateVideoMimeType();
 
+  onProgress?.(2, 'Preparing video canvas...');
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -498,6 +647,7 @@ export async function exportAnimatedChatVideo(
     const blob = new Blob([htmlFallback], { type: 'text/html' });
     const filename = `${project.platformId}-animated-story.html`;
     triggerBrowserDownload(blob, filename);
+    onProgress?.(100, 'Exported interactive fallback');
     return {
       filename,
       mimeType: 'text/html',
@@ -526,6 +676,7 @@ export async function exportAnimatedChatVideo(
     450,
     Math.max(140, Math.round(project.timeline.defaultMessageDelayMs / 3))
   );
+  let totalElapsedMs = 0;
 
   for (let i = 1; i <= msgCount; i++) {
     const msg = conv.messages[i - 1];
@@ -535,6 +686,39 @@ export async function exportAnimatedChatVideo(
       msg && msg.senderId !== conv.selfParticipantId && msg.senderId !== 'system';
 
     if (isIncoming) {
+      const typingTotalMs = Math.round(stepMs * 0.7);
+      const typingFrames = 3;
+      const frameMs = Math.max(30, Math.round(typingTotalMs / typingFrames));
+      for (let t = 0; t < typingFrames; t++) {
+        drawSceneFrame(
+          ctx,
+          width,
+          height,
+          project,
+          conv,
+          participantsById,
+          i - 1,
+          true,
+          videoOpts.showKeyboard,
+          0.2,
+          t / typingFrames
+        );
+        const pct = Math.min(96, Math.round((((i - 1) + (t + 1) / (typingFrames + 2)) / msgCount) * 95));
+        onProgress?.(pct, `Animating typing (${i}/${msgCount})...`);
+        await new Promise((r) => setTimeout(r, frameMs));
+        totalElapsedMs += frameMs;
+      }
+    }
+
+    const revealFrames = msg?.type === 'voice_note' && videoOpts.simulateVoicePlayback ? 3 : 1;
+    const revealFrameMs = Math.max(40, Math.round(stepMs / revealFrames));
+    for (let f = 0; f < revealFrames; f++) {
+      const voiceProg =
+        msg?.type === 'voice_note' && videoOpts.simulateVoicePlayback
+          ? (f + 1) / revealFrames
+          : videoOpts.simulateVoicePlayback
+            ? 0.85
+            : 0.4;
       drawSceneFrame(
         ctx,
         width,
@@ -542,34 +726,25 @@ export async function exportAnimatedChatVideo(
         project,
         conv,
         participantsById,
-        i - 1,
-        true,
-        videoOpts.showKeyboard,
-        0.2
+        i,
+        false,
+        false,
+        voiceProg
       );
-      await new Promise((r) => setTimeout(r, Math.round(stepMs * 0.7)));
+      await new Promise((r) => setTimeout(r, revealFrameMs));
+      totalElapsedMs += revealFrameMs;
     }
 
-    drawSceneFrame(
-      ctx,
-      width,
-      height,
-      project,
-      conv,
-      participantsById,
-      i,
-      false,
-      false,
-      videoOpts.simulateVoicePlayback ? 0.85 : 0.4
-    );
-    onProgress?.(Math.round((i / msgCount) * 100));
-    await new Promise((r) => setTimeout(r, stepMs));
+    const msgPct = Math.min(96, Math.round((i / msgCount) * 96));
+    onProgress?.(msgPct, `Rendering message ${i} of ${msgCount}...`);
   }
 
+  onProgress?.(98, 'Encoding video stream...');
   recorder.stop();
   const blob = await stopped;
   const filename = `${project.platformId}-story.${extension}`;
   triggerBrowserDownload(blob, filename);
+  onProgress?.(100, 'Video ready');
 
   return {
     filename,
@@ -578,6 +753,6 @@ export async function exportAnimatedChatVideo(
     widthPx: width,
     heightPx: height,
     fps: safeFps,
-    durationMs: msgCount * defaultStepMs,
+    durationMs: totalElapsedMs,
   };
 }

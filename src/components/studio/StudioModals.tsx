@@ -73,6 +73,8 @@ export function ExportModal({
 
   const [exportTab, setExportTab] = useState<'image' | 'video'>('image');
   const [isExporting, setIsExporting] = useState(false);
+  const [videoProgressPct, setVideoProgressPct] = useState(0);
+  const [videoProgressStage, setVideoProgressStage] = useState('');
   const [exportSuccess, setExportSuccess] = useState<ExportOutput | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -85,6 +87,8 @@ export function ExportModal({
   const handleRunExport = async () => {
     setExportError(null);
     setExportSuccess(null);
+    setVideoProgressPct(0);
+    setVideoProgressStage('');
     setIsExporting(true);
     try {
       if (exportTab === 'video') {
@@ -94,7 +98,10 @@ export function ExportModal({
           openUpgradeModal('video_export');
           return;
         }
-        const vidRes = await exportAnimatedChatVideo(project);
+        const vidRes = await exportAnimatedChatVideo(project, (pct, stage) => {
+          setVideoProgressPct(pct);
+          if (stage) setVideoProgressStage(stage);
+        });
         setExportSuccess({
           filename: vidRes.filename,
           mimeType: vidRes.mimeType,
@@ -457,6 +464,81 @@ export function ExportModal({
                 </select>
               </label>
             </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <label className="space-y-1">
+                <span className="font-medium text-slate-600 dark:text-slate-400">
+                  Resolution
+                </span>
+                <select
+                  aria-label="Video resolution"
+                  value={project.timeline.videoOptions?.resolution ?? '1080p'}
+                  onChange={(e) => {
+                    const nextRes = e.target.value as '720p' | '1080p' | '4k';
+                    if (nextRes === '4k' && !hasFeatureAccess('video_4k_export')) {
+                      onOpenChange(false);
+                      openUpgradeModal('video_4k_export');
+                      return;
+                    }
+                    updateVideoOptions({ resolution: nextRes });
+                  }}
+                  className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <option value="720p">720p HD</option>
+                  <option value="1080p">1080p Full HD</option>
+                  <option value="4k" disabled={!caps.supports4K}>
+                    4K Ultra HD {!caps.supports4K ? '(Unsupported)' : ''}
+                  </option>
+                </select>
+              </label>
+
+              <label className="space-y-1">
+                <span className="font-medium text-slate-600 dark:text-slate-400">
+                  Frame Rate
+                </span>
+                <select
+                  aria-label="Video frame rate"
+                  value={project.timeline.videoOptions?.fps ?? 30}
+                  onChange={(e) => {
+                    const nextFps = Number(e.target.value) as 30 | 60;
+                    if (nextFps === 60 && !hasFeatureAccess('video_60fps_export')) {
+                      onOpenChange(false);
+                      openUpgradeModal('video_60fps_export');
+                      return;
+                    }
+                    updateVideoOptions({ fps: nextFps });
+                  }}
+                  className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <option value={30}>30 FPS (Smooth)</option>
+                  <option value={60} disabled={!caps.supports60Fps}>
+                    60 FPS {!caps.supports60Fps ? '(Unsupported)' : ''}
+                  </option>
+                </select>
+              </label>
+            </div>
+
+            {isExporting && (
+              <div
+                data-testid="video-export-progress"
+                role="progressbar"
+                aria-valuenow={videoProgressPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="space-y-1.5 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 dark:border-indigo-900 dark:bg-indigo-950/50"
+              >
+                <div className="flex items-center justify-between text-[11px] font-semibold text-indigo-950 dark:text-indigo-200">
+                  <span>{videoProgressStage || 'Rendering animated video...'}</span>
+                  <span>{videoProgressPct}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-indigo-200/80 dark:bg-indigo-900">
+                  <div
+                    className="h-full rounded-full bg-indigo-600 transition-all duration-150"
+                    style={{ width: `${Math.max(4, videoProgressPct)}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             {caps.reasonIfLimited && (
               <p className="rounded-lg bg-amber-50 p-2 text-[11px] text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">

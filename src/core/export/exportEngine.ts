@@ -119,6 +119,9 @@ function resizeCanvasWithBackdrop(
   const ctx = out.getContext('2d');
   if (!ctx) return source;
 
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
   if (!transparent) {
     ctx.fillStyle = backdropColor;
     ctx.fillRect(0, 0, targetW, targetH);
@@ -133,13 +136,26 @@ function resizeCanvasWithBackdrop(
   return out;
 }
 
+function resolveLogicalDimensions(element: HTMLElement): { width: number; height: number } {
+  const offsetW = element.offsetWidth;
+  const offsetH = element.offsetHeight;
+  if (offsetW > 0 && offsetH > 0) {
+    return { width: offsetW, height: offsetH };
+  }
+  const rect = element.getBoundingClientRect();
+  return {
+    width: Math.max(1, Math.round(rect.width)),
+    height: Math.max(1, Math.round(rect.height)),
+  };
+}
+
 function resolveAspectDimensions(
   aspectRatioPreset: ExportSettings['aspectRatioPreset'],
-  rect: DOMRect,
+  logicalSize: { width: number; height: number },
   scaleFactor: 1 | 2 | 3
 ): { width: number; height: number } | null {
   if (!aspectRatioPreset || aspectRatioPreset === 'device') return null;
-  const baseW = Math.max(Math.round(rect.width), 393) * scaleFactor;
+  const baseW = Math.max(Math.round(logicalSize.width), 393) * scaleFactor;
   if (aspectRatioPreset === '9:16') return { width: baseW, height: Math.round((baseW * 16) / 9) };
   if (aspectRatioPreset === '4:5') return { width: baseW, height: Math.round((baseW * 5) / 4) };
   if (aspectRatioPreset === '1:1') return { width: baseW, height: baseW };
@@ -155,7 +171,8 @@ export async function exportMockupElement(
   await waitForAssetsReady(element);
 
   const baseName = sanitizeFileBase(projectTitle);
-  const rect = element.getBoundingClientRect();
+  // Use unscaled layout dimensions so previewZoom CSS transforms never crop or distort exports
+  const logicalSize = resolveLogicalDimensions(element);
   const isTransparent =
     settings.backgroundMode === 'transparent' && settings.format !== 'jpeg';
   const quality = Math.max(0.5, Math.min(1, settings.quality ?? 0.92));
@@ -169,11 +186,11 @@ export async function exportMockupElement(
         ? '#000000'
         : '#ffffff';
 
-  const captureWidth = Math.max(1, Math.round(rect.width));
+  const captureWidth = Math.max(1, Math.round(logicalSize.width));
   const captureHeight =
     settings.captureScope === 'full_conversation'
-      ? Math.max(Math.round(rect.height), element.scrollHeight)
-      : Math.max(1, Math.round(rect.height));
+      ? Math.max(Math.round(logicalSize.height), element.scrollHeight)
+      : Math.max(1, Math.round(logicalSize.height));
 
   const commonOptions = {
     pixelRatio: settings.scaleFactor,
@@ -181,12 +198,16 @@ export async function exportMockupElement(
     width: captureWidth,
     height: captureHeight,
     backgroundColor: isTransparent ? undefined : solidBg,
+    style: {
+      transform: 'none',
+      margin: '0',
+    },
     filter: (node: HTMLElement) => !node?.dataset?.exportIgnore,
   };
 
   const aspectTarget = resolveAspectDimensions(
     settings.aspectRatioPreset,
-    rect,
+    logicalSize,
     settings.scaleFactor
   );
   const targetDims =
