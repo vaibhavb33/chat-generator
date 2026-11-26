@@ -88,24 +88,24 @@ export function PlatformRendererHost({
   const viewTabs: Array<{ id: ScreenViewMode; label: string }> =
     project.platformId === 'whatsapp-chat'
       ? [
-          { id: 'chat_thread', label: 'Chat View' },
-          { id: 'chat_list', label: 'Chat List' },
-        ]
+        { id: 'chat_thread', label: 'Chat View' },
+        { id: 'chat_list', label: 'Chat List' },
+      ]
       : project.platformId === 'whatsapp-group-chat'
         ? [
-            { id: 'chat_thread', label: 'Group View' },
-            { id: 'chat_list', label: 'Chat List' },
-          ]
+          { id: 'chat_thread', label: 'Group View' },
+          { id: 'chat_list', label: 'Chat List' },
+        ]
         : project.platformId === 'telegram-chat'
           ? [
-              { id: 'chat_thread', label: 'Chat / Group' },
-              { id: 'chat_list', label: 'Chat List' },
-            ]
+            { id: 'chat_thread', label: 'Chat / Group' },
+            { id: 'chat_list', label: 'Chat List' },
+          ]
           : project.platformId === 'instagram-post'
             ? [
-                { id: 'home_feed', label: 'Home Feed' },
-                { id: 'post', label: 'Post Card' },
-              ]
+              { id: 'home_feed', label: 'Home Feed' },
+              { id: 'post', label: 'Post Card' },
+            ]
             : [];
 
   const handleOpenEdit = () => {
