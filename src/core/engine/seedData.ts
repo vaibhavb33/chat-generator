@@ -143,11 +143,22 @@ export function createSeedProject(platformId: string): Project {
           ? 'Maya, Daniel, You, +11 more'
           : manifest.id === 'discord-chat'
             ? '48 online • Launch planning channel'
-            : 'online',
+            : manifest.id === 'telegram-chat'
+              ? 'online'
+              : 'online',
       typingParticipantIds: [],
       isEncryptedNoticeVisible: manifest.id === 'whatsapp-chat',
       isVanishMode: false,
       channelName: 'launch-weekend',
+      showPinnedBar: manifest.id === 'telegram-chat',
+      pinnedBarTitle: manifest.id === 'telegram-chat' ? 'Pinned Message' : undefined,
+      pinnedBarText:
+        manifest.id === 'telegram-chat'
+          ? '🚀 Release candidate build #304 ready for QA'
+          : undefined,
+      telegramProfile: manifest.id === 'telegram-chat' ? 'telegram_modern' : undefined,
+      telegramMembersCountLabel:
+        manifest.id === 'telegram-chat' ? '1,420 members, 84 online' : undefined,
     },
     storyMeta:
       manifest.capabilities.archetype === 'ephemeral_story'
@@ -643,6 +654,95 @@ function buildSeedMessages(
         attachments: [],
         reactions: [{ emoji: '❤️', participantIds: [otherId], count: 1 }],
         readReceipt: { status: 'delivered' },
+      },
+    ];
+  }
+
+  if (platformId === 'telegram-chat') {
+    return [
+      {
+        id: 'msg_tg_date',
+        senderId: 'system',
+        type: 'date_separator',
+        text: 'November 26',
+        timestampLabel: '',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'none' },
+      },
+      {
+        id: 'msg_tg_system',
+        senderId: 'system',
+        type: 'system',
+        text: 'Alex pinned "🚀 Release candidate build #304 ready for QA"',
+        timestampLabel: '10:00 AM',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'none' },
+      },
+      {
+        id: 'msg_tg_1',
+        senderId: otherId,
+        type: 'text',
+        text: 'Morning team! Just pushed the latest client-side build with zero watermark exports 🚀',
+        timestampLabel: '10:01 AM',
+        attachments: [],
+        reactions: [{ emoji: '🔥', participantIds: [selfId], count: 3 }],
+        readReceipt: { status: 'read' },
+      },
+      {
+        id: 'msg_tg_2',
+        senderId: selfId,
+        type: 'voice_note',
+        text: 'Voice message (0:24)',
+        timestampLabel: '10:02 AM',
+        attachments: [
+          {
+            id: 'att_vn_tg',
+            kind: 'voice_note',
+            durationSeconds: 24,
+            voiceNoteMeta: {
+              waveformPeaks: [
+                0.35, 0.65, 0.9, 0.5, 0.75, 0.4, 0.85, 0.6, 0.95, 0.7, 0.45, 0.8, 0.5, 0.35,
+                0.65, 0.85,
+              ],
+              playbackSpeed: '1x',
+              isListened: false,
+            },
+          },
+        ],
+        reactions: [{ emoji: '👍', participantIds: [otherId], count: 2 }],
+        readReceipt: { status: 'read', readAtLabel: '10:02 AM' },
+      },
+      {
+        id: 'msg_tg_3',
+        senderId: otherId,
+        type: 'document',
+        text: 'ChatForge_Architecture_v2.pdf',
+        timestampLabel: '10:04 AM',
+        attachments: [
+          {
+            id: 'att_doc_tg',
+            kind: 'document',
+            fileName: 'ChatForge_Architecture_v2.pdf',
+            fileSizeBytes: 2420000,
+            pageCount: 12,
+          },
+        ],
+        reactions: [],
+        readReceipt: { status: 'read' },
+      },
+      {
+        id: 'msg_tg_4',
+        senderId: selfId,
+        type: 'text',
+        text: 'Checked the PDF specs. Everything looks ready for production rollout!',
+        timestampLabel: '10:06 AM',
+        isEdited: true,
+        replyToMessageId: 'msg_tg_1',
+        attachments: [],
+        reactions: [{ emoji: '❤️', participantIds: [otherId], count: 1 }],
+        readReceipt: { status: 'read', readAtLabel: '10:06 AM' },
       },
     ];
   }

@@ -292,6 +292,12 @@ export interface Conversation {
     simSlotLabel?: string;
     isRcsMode?: boolean;
     showSearchAction?: boolean;
+    telegramProfile?: 'telegram_modern' | 'telegram_classic' | 'telegram_ios';
+    showPinnedBar?: boolean;
+    pinnedBarText?: string;
+    pinnedBarTitle?: string;
+    telegramTheme?: 'classic_blue' | 'dark' | 'night' | 'day';
+    telegramMembersCountLabel?: string;
   };
   storyMeta?: {
     slides: StorySlide[];
