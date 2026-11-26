@@ -358,13 +358,22 @@ export interface Conversation {
     hasStoryRing?: boolean;
   };
   callMeta?: {
-    callPlatform: 'ios-phone' | 'facetime' | 'whatsapp-voice' | 'whatsapp-video' | 'instagram-video';
-    direction: 'incoming' | 'outgoing' | 'active';
+    callPlatform: 'ios-phone' | 'android-phone' | 'facetime' | 'whatsapp-voice' | 'whatsapp-video' | 'instagram-video';
+    direction: 'incoming' | 'outgoing' | 'active' | 'missed';
     callStateLabel: string;
     durationSeconds: number;
     isMuted: boolean;
     isSpeakerOn: boolean;
     isCameraOn: boolean;
+    phoneNumber?: string;
+    callTypeLabel?: string;
+    isKeypadOpen?: boolean;
+    isHold?: boolean;
+    backgroundStyle?: 'dark-gradient' | 'blur-avatar' | 'whatsapp-emerald' | 'solid-slate' | 'custom-image';
+    customBackgroundUrl?: string;
+    showFictionalBadge?: boolean;
+    deviceMode?: 'ios' | 'android';
+    simSlot?: string;
   };
   messages: Message[];
 }

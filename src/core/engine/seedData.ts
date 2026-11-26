@@ -322,13 +322,18 @@ export function createSeedProject(platformId: string): Project {
     callMeta:
       manifest.capabilities.archetype === 'call_screen'
         ? {
-            callPlatform: 'whatsapp-voice',
+            callPlatform: 'ios-phone',
             direction: 'incoming',
-            callStateLabel: 'WhatsApp voice call',
+            callStateLabel: 'iPhone Call',
             durationSeconds: 74,
             isMuted: false,
-            isSpeakerOn: true,
+            isSpeakerOn: false,
             isCameraOn: false,
+            phoneNumber: '+1 (415) 555-0194',
+            callTypeLabel: 'mobile',
+            backgroundStyle: 'dark-gradient',
+            showFictionalBadge: false,
+            deviceMode: 'ios',
           }
         : undefined,
     messages: buildSeedMessages(manifest.id, selfId, otherId, thirdId, fourthId),

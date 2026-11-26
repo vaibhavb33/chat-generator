@@ -28,6 +28,7 @@ import { ImessageEditor } from '@/components/studio/ImessageEditor';
 import { AndroidMessagesEditor } from '@/components/studio/AndroidMessagesEditor';
 import { TelegramEditor } from '@/components/studio/TelegramEditor';
 import { DiscordEditor } from '@/components/studio/DiscordEditor';
+import { FakeCallEditor } from '@/components/studio/FakeCallEditor';
 import type { MessageType, ReadReceiptStatus, VerificationBadgeType } from '@/core/types';
 import { cn } from '@/lib/utils';
 
@@ -146,6 +147,15 @@ export function LeftEditorPanel({
   if (project.platformId === 'discord-chat') {
     return (
       <DiscordEditor
+        onOpenScriptImport={onOpenScriptImport}
+        onRequestClearAll={onRequestClearAll}
+      />
+    );
+  }
+
+  if (project.platformId === 'fake-call-screen') {
+    return (
+      <FakeCallEditor
         onOpenScriptImport={onOpenScriptImport}
         onRequestClearAll={onRequestClearAll}
       />
