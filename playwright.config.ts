@@ -31,6 +31,7 @@ export default defineConfig({
     {
       name: 'firefox',
       testMatch: [
+        '**/master-redesign-qa.spec.ts',
         '**/audit-security-perf.spec.ts',
         '**/responsive-and-flows.spec.ts',
         '**/dedicated-routes.spec.ts',
@@ -52,6 +53,7 @@ export default defineConfig({
     {
       name: 'webkit',
       testMatch: [
+        '**/master-redesign-qa.spec.ts',
         '**/audit-security-perf.spec.ts',
         '**/responsive-and-flows.spec.ts',
         '**/dedicated-routes.spec.ts',

@@ -83,7 +83,7 @@ test.describe('Studio Workspace Core Flows, States & PNG Export', () => {
     await expect(page.getByTestId('video-timeline-bar')).toBeVisible();
 
     // Export PNG and verify actual download + success state
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
     const download = await downloadPromise;

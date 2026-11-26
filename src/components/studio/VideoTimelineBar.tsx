@@ -1,9 +1,23 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Download, Loader2, Pause, Play, RotateCcw, StepForward } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Crown,
+  Download,
+  Loader2,
+  Lock,
+  Pause,
+  Play,
+  RotateCcw,
+  StepForward,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { exportAnimatedChatVideo, type VideoExportResult } from '@/core/export/videoExporter';
+import { useBillingStore } from '@/core/billing/entitlements';
+import {
+  detectVideoCapabilities,
+  exportAnimatedChatVideo,
+  type VideoExportResult,
+} from '@/core/export/videoExporter';
 import { getActiveConversation, useStudioStore } from '@/core/store/useStudioStore';
 
 export function VideoTimelineBar() {
@@ -17,6 +31,9 @@ export function VideoTimelineBar() {
   const setTypingPreview = useStudioStore((s) => s.setTypingPreview);
   const updateVideoOptions = useStudioStore((s) => s.updateVideoOptions);
 
+  const hasFeatureAccess = useBillingStore((s) => s.hasFeatureAccess);
+  const openUpgradeModal = useBillingStore((s) => s.openUpgradeModal);
+
   const [isExportingVideo, setIsExportingVideo] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [videoResult, setVideoResult] = useState<VideoExportResult | null>(null);
@@ -25,6 +42,8 @@ export function VideoTimelineBar() {
   const total = Math.max(1, conv.messages.length);
   const visible = Math.min(ui.timelineVisibleCount, total);
   const videoOpts = project.timeline.videoOptions;
+
+  const caps = useMemo(() => detectVideoCapabilities(), []);
 
   useEffect(() => {
     if (!ui.isPlayingTimeline) return;
@@ -37,6 +56,10 @@ export function VideoTimelineBar() {
   if (!ui.isTimelineOpen) return null;
 
   const handleVideoExport = async () => {
+    if (!hasFeatureAccess('video_export')) {
+      openUpgradeModal('video_export');
+      return;
+    }
     setIsExportingVideo(true);
     setExportProgress(0);
     setVideoResult(null);
@@ -51,7 +74,7 @@ export function VideoTimelineBar() {
   return (
     <div
       data-testid="video-timeline-bar"
-      className="border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
+      className="border-t border-slate-200 bg-white px-4 py-3 pb-20 dark:border-slate-800 dark:bg-slate-950"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -95,7 +118,7 @@ export function VideoTimelineBar() {
         </div>
 
         {/* Scrubber Track */}
-        <div className="hidden min-w-[160px] flex-1 items-center gap-1.5 xl:flex">
+        <div className="hidden min-w-[140px] flex-1 items-center gap-1.5 xl:flex">
           {conv.messages.map((m, i) => (
             <div
               key={m.id}
@@ -107,8 +130,8 @@ export function VideoTimelineBar() {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          <label className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+        <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          <label className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
             <span>Ratio:</span>
             <select
               aria-label="Video aspect ratio"
@@ -120,28 +143,55 @@ export function VideoTimelineBar() {
               }
               className="h-7 rounded border border-slate-200 bg-white px-1.5 text-xs dark:border-slate-700 dark:bg-slate-900"
             >
-              <option value="9:16">9:16 Reels/TikTok</option>
+              <option value="9:16">9:16 Reels/Shorts</option>
               <option value="4:5">4:5 Feed</option>
               <option value="1:1">1:1 Square</option>
             </select>
           </label>
 
-          <label className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-            <span>Backdrop:</span>
+          <label className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+            <span>Quality:</span>
             <select
-              aria-label="Video background style"
-              value={videoOpts?.backgroundCss ?? 'indigo'}
-              onChange={(e) => updateVideoOptions({ backgroundCss: e.target.value })}
+              aria-label="Video resolution"
+              value={videoOpts?.resolution ?? '1080p'}
+              onChange={(e) => {
+                const res = e.target.value as '720p' | '1080p' | '4k';
+                if (res === '4k' && !hasFeatureAccess('video_4k_export')) {
+                  openUpgradeModal('video_4k_export');
+                  return;
+                }
+                updateVideoOptions({ resolution: res });
+              }}
               className="h-7 rounded border border-slate-200 bg-white px-1.5 text-xs dark:border-slate-700 dark:bg-slate-900"
             >
-              <option value="linear-gradient(135deg, #0f172a 0%, #312e81 55%, #1e1b4b 100%)">
-                Midnight Studio
+              <option value="720p">720p HD</option>
+              <option value="1080p" disabled={!caps.supports1080p}>
+                1080p Full HD
               </option>
-              <option value="linear-gradient(135deg, #4f46e5 0%, #ec4899 100%)">
-                Creator Sunset
+              <option value="4k" disabled={!caps.supports4K}>
+                {caps.supports4K ? '4K Ultra HD (Pro)' : '4K (Unsupported on device)'}
               </option>
-              <option value="linear-gradient(135deg, #4f46e5 0%, #1d4ed8 100%)">
-                Electric Blue
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+            <span>FPS:</span>
+            <select
+              aria-label="Video frame rate"
+              value={videoOpts?.fps ?? 30}
+              onChange={(e) => {
+                const fps = Number(e.target.value) as 30 | 60;
+                if (fps === 60 && !hasFeatureAccess('video_60fps_export')) {
+                  openUpgradeModal('video_60fps_export');
+                  return;
+                }
+                updateVideoOptions({ fps });
+              }}
+              className="h-7 rounded border border-slate-200 bg-white px-1.5 text-xs dark:border-slate-700 dark:bg-slate-900"
+            >
+              <option value={30}>30 FPS</option>
+              <option value={60} disabled={!caps.supports60Fps}>
+                {caps.supports60Fps ? '60 FPS (Pro)' : '60 FPS (Unsupported)'}
               </option>
             </select>
           </label>
@@ -164,7 +214,7 @@ export function VideoTimelineBar() {
             Typing
           </label>
 
-          <label className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+          <label className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
             <span>Pace:</span>
             <select
               aria-label="Timeline message pacing"
@@ -191,6 +241,12 @@ export function VideoTimelineBar() {
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Rendering {exportProgress}%
               </>
+            ) : !hasFeatureAccess('video_export') ? (
+              <>
+                <Lock className="h-3.5 w-3.5" />
+                Export Video
+                <Crown className="h-3 w-3 text-amber-300" />
+              </>
             ) : (
               <>
                 <Download className="h-3.5 w-3.5" /> Export Video
@@ -200,6 +256,12 @@ export function VideoTimelineBar() {
         </div>
       </div>
 
+      {caps.reasonIfLimited && (
+        <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+          {caps.reasonIfLimited}
+        </p>
+      )}
+
       {videoResult && (
         <div
           data-testid="video-export-success"
@@ -207,7 +269,7 @@ export function VideoTimelineBar() {
           className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
         >
           Exported <strong>{videoResult.filename}</strong> ({videoResult.widthPx}×
-          {videoResult.heightPx}px via {videoResult.method})
+          {videoResult.heightPx}px @ {videoResult.fps}fps via {videoResult.method})
         </div>
       )}
     </div>

@@ -43,7 +43,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
       }
 
       // Export PNG
-      await page.getByTestId('top-export-button').click();
+      await page.getByTestId('footer-download-button').click();
       await expect(page.getByTestId('confirm-export-btn')).toBeVisible();
       const downloadPromise = page.waitForEvent('download');
       await page.getByTestId('confirm-export-btn').click();
@@ -64,7 +64,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
       page.getByTestId('mockup-export-surface').getByText('Updated Story Headline!')
     ).toBeVisible();
 
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
     const dl = await downloadPromise;
@@ -83,7 +83,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
       page.getByTestId('mockup-export-surface').getByText('Tokyo, Japan')
     ).toBeVisible();
 
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
     const dl = await downloadPromise;
@@ -102,7 +102,7 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
     await surface.getByText('Accept').click();
     await expect(surface.getByText('01:14')).toBeVisible();
 
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
     const dl = await downloadPromise;

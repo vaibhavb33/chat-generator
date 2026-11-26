@@ -20,6 +20,42 @@ function sanitizeFileBase(title: string): string {
   );
 }
 
+/**
+ * Ensures all web fonts and rendered images inside the target surface
+ * have completely decoded before snapshot rendering runs.
+ */
+async function waitForAssetsReady(element: HTMLElement): Promise<void> {
+  if (typeof document !== 'undefined' && 'fonts' in document) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // Ignore font readiness rejection in constrained headless environments
+    }
+  }
+
+  const images = Array.from(element.querySelectorAll('img'));
+  await Promise.all(
+    images.map(async (img) => {
+      if (img.complete && img.naturalWidth > 0) {
+        if (typeof img.decode === 'function') {
+          try {
+            await img.decode();
+          } catch {
+            // Continue even if decode rejects on data URLs
+          }
+        }
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        const done = () => resolve();
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+        setTimeout(done, 1500);
+      });
+    })
+  );
+}
+
 function dataUrlToBlob(dataUrl: string): Blob | null {
   if (!dataUrl.startsWith('data:')) return null;
   const commaIdx = dataUrl.indexOf(',');
@@ -74,7 +110,8 @@ function resizeCanvasWithBackdrop(
   source: HTMLCanvasElement,
   targetW: number,
   targetH: number,
-  transparent: boolean
+  transparent: boolean,
+  backdropColor: string
 ): HTMLCanvasElement {
   const out = document.createElement('canvas');
   out.width = targetW;
@@ -83,11 +120,11 @@ function resizeCanvasWithBackdrop(
   if (!ctx) return source;
 
   if (!transparent) {
-    ctx.fillStyle = '#f8fafc';
+    ctx.fillStyle = backdropColor;
     ctx.fillRect(0, 0, targetW, targetH);
   }
 
-  const scale = Math.min((targetW * 0.9) / source.width, (targetH * 0.9) / source.height);
+  const scale = Math.min((targetW * 0.92) / source.width, (targetH * 0.92) / source.height);
   const drawW = source.width * scale;
   const drawH = source.height * scale;
   const dx = (targetW - drawW) / 2;
@@ -96,29 +133,75 @@ function resizeCanvasWithBackdrop(
   return out;
 }
 
+function resolveAspectDimensions(
+  aspectRatioPreset: ExportSettings['aspectRatioPreset'],
+  rect: DOMRect,
+  scaleFactor: 1 | 2 | 3
+): { width: number; height: number } | null {
+  if (!aspectRatioPreset || aspectRatioPreset === 'device') return null;
+  const baseW = Math.max(Math.round(rect.width), 393) * scaleFactor;
+  if (aspectRatioPreset === '9:16') return { width: baseW, height: Math.round((baseW * 16) / 9) };
+  if (aspectRatioPreset === '4:5') return { width: baseW, height: Math.round((baseW * 5) / 4) };
+  if (aspectRatioPreset === '1:1') return { width: baseW, height: baseW };
+  return null;
+}
+
 export async function exportMockupElement(
   element: HTMLElement,
   settings: ExportSettings,
-  projectTitle: string
+  projectTitle: string,
+  colorScheme: 'light' | 'dark' | 'dim' = 'light'
 ): Promise<ExportOutput> {
+  await waitForAssetsReady(element);
+
   const baseName = sanitizeFileBase(projectTitle);
   const rect = element.getBoundingClientRect();
-  const isTransparent = settings.backgroundMode === 'transparent' && settings.format !== 'jpeg';
+  const isTransparent =
+    settings.backgroundMode === 'transparent' && settings.format !== 'jpeg';
+  const quality = Math.max(0.5, Math.min(1, settings.quality ?? 0.92));
+  const darkSurface = colorScheme === 'dark' || colorScheme === 'dim';
+  const solidBg =
+    settings.backgroundMode === 'solid'
+      ? darkSurface
+        ? '#090d16'
+        : '#f8fafc'
+      : darkSurface
+        ? '#000000'
+        : '#ffffff';
+
+  const captureWidth = Math.max(1, Math.round(rect.width));
+  const captureHeight =
+    settings.captureScope === 'full_conversation'
+      ? Math.max(Math.round(rect.height), element.scrollHeight)
+      : Math.max(1, Math.round(rect.height));
 
   const commonOptions = {
     pixelRatio: settings.scaleFactor,
     cacheBust: true,
-    backgroundColor: isTransparent ? undefined : '#ffffff',
+    width: captureWidth,
+    height: captureHeight,
+    backgroundColor: isTransparent ? undefined : solidBg,
     filter: (node: HTMLElement) => !node?.dataset?.exportIgnore,
   };
 
-  if (settings.useCustomDimensions && settings.customWidthPx && settings.customHeightPx) {
+  const aspectTarget = resolveAspectDimensions(
+    settings.aspectRatioPreset,
+    rect,
+    settings.scaleFactor
+  );
+  const targetDims =
+    settings.useCustomDimensions && settings.customWidthPx && settings.customHeightPx
+      ? { width: settings.customWidthPx, height: settings.customHeightPx }
+      : aspectTarget;
+
+  if (targetDims) {
     const rawCanvas = await toCanvas(element, commonOptions);
     const sized = resizeCanvasWithBackdrop(
       rawCanvas,
-      settings.customWidthPx,
-      settings.customHeightPx,
-      isTransparent
+      targetDims.width,
+      targetDims.height,
+      isTransparent,
+      solidBg
     );
     const mime =
       settings.format === 'jpeg'
@@ -126,25 +209,30 @@ export async function exportMockupElement(
         : settings.format === 'webp'
           ? 'image/webp'
           : 'image/png';
-    const ext = settings.format === 'jpeg' ? 'jpg' : settings.format === 'webp' ? 'webp' : 'png';
-    const dataUrl = sized.toDataURL(mime, 0.92);
-    const filename = `${baseName}-${settings.customWidthPx}x${settings.customHeightPx}.${ext}`;
+    const ext =
+      settings.format === 'jpeg'
+        ? 'jpg'
+        : settings.format === 'webp'
+          ? 'webp'
+          : 'png';
+    const dataUrl = sized.toDataURL(mime, quality);
+    const filename = `${baseName}-${targetDims.width}x${targetDims.height}.${ext}`;
     triggerBrowserDownload(dataUrl, filename);
     return {
       filename,
       mimeType: mime,
       dataUrl,
-      widthPx: settings.customWidthPx,
-      heightPx: settings.customHeightPx,
+      widthPx: targetDims.width,
+      heightPx: targetDims.height,
     };
   }
 
-  const widthPx = Math.max(1, Math.round(rect.width * settings.scaleFactor));
-  const heightPx = Math.max(1, Math.round(rect.height * settings.scaleFactor));
+  const widthPx = Math.max(1, Math.round(captureWidth * settings.scaleFactor));
+  const heightPx = Math.max(1, Math.round(captureHeight * settings.scaleFactor));
 
   if (settings.format === 'webp') {
     const canvas = await toCanvas(element, commonOptions);
-    const dataUrl = canvas.toDataURL('image/webp', 0.92);
+    const dataUrl = canvas.toDataURL('image/webp', quality);
     const encodedAsWebp = dataUrl.startsWith('data:image/webp');
     const filename = `${baseName}-${settings.scaleFactor}x.${encodedAsWebp ? 'webp' : 'png'}`;
     triggerBrowserDownload(dataUrl, filename);
@@ -160,8 +248,8 @@ export async function exportMockupElement(
   if (settings.format === 'jpeg') {
     const dataUrl = await toJpeg(element, {
       ...commonOptions,
-      backgroundColor: '#ffffff',
-      quality: 0.92,
+      backgroundColor: solidBg,
+      quality,
     });
     const filename = `${baseName}-${settings.scaleFactor}x.jpg`;
     triggerBrowserDownload(dataUrl, filename);

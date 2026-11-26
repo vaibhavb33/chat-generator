@@ -4,7 +4,14 @@ import { parseScreenplayText } from '@/core/engine/scriptParser';
 import { parseImportedProjectJson } from '@/core/export/exportEngine';
 import { createSeedProject, STARTER_TEMPLATES } from '@/core/engine/seedData';
 import { TEMPLATE_CATEGORY_LABELS } from '@/core/engine/templateLibrary';
-import { getVideoDimensions } from '@/core/export/videoExporter';
+import { detectVideoCapabilities, getVideoDimensions } from '@/core/export/videoExporter';
+import { isPlanEntitledToFeature } from '@/core/billing/entitlements';
+import {
+  PREMIUM_FEATURE_CATALOG,
+  PRICING_PLANS,
+  formatPlanPrice,
+  type PremiumFeatureKey,
+} from '@/core/billing/plansConfig';
 import { GENERATOR_SEO_CONTENT } from '@/content/generatorSeoContent';
 import { BLOG_ARTICLES } from '@/content/blogArticles';
 import { LOCALES, buildHreflangAlternates } from '@/core/i18n/locales';
@@ -206,5 +213,51 @@ describe('Studio Store Mutations, Undo/Redo & Persistence', () => {
     const alternates = buildHreflangAlternates('/whatsapp-chat-generator');
     expect(alternates['en']).toBe('https://chatforge.studio/whatsapp-chat-generator');
     expect(alternates['x-default']).toBe('https://chatforge.studio/whatsapp-chat-generator');
+  });
+
+  it('switches iPhone/Android devices and Dark/Light appearances while preserving messages', async () => {
+    const store = useStudioStore.getState();
+    store.addMessage({ senderId: 'part_self', text: 'Persist across device switches' });
+    const countBefore = getActiveConversation(useStudioStore.getState().project).messages.length;
+
+    store.setDeviceType('android');
+    store.setAppearance('dark');
+    let state = useStudioStore.getState();
+    expect(state.project.theme.deviceType).toBe('android');
+    expect(state.project.theme.osVariant).toBe('android');
+    expect(state.project.theme.statusBar.notchStyle).toBe('punch_hole');
+    expect(state.project.theme.colorScheme).toBe('dark');
+    expect(getActiveConversation(state.project).messages.length).toBe(countBefore);
+
+    store.setDeviceType('iphone');
+    state = useStudioStore.getState();
+    expect(state.project.theme.deviceType).toBe('iphone');
+    expect(state.project.theme.osVariant).toBe('ios');
+    expect(state.project.theme.statusBar.notchStyle).toBe('dynamic_island');
+    expect(state.project.theme.colorScheme).toBe('dark');
+
+    await store.saveNow();
+    await store.renameSavedProject(state.project.id, 'Renamed QA Project');
+    expect(useStudioStore.getState().project.title).toBe('Renamed QA Project');
+  });
+
+  it('enforces genuine Free vs Pro feature gating, INR configurable pricing, and honest video capability checks', () => {
+    const allFeatures = Object.keys(PREMIUM_FEATURE_CATALOG) as PremiumFeatureKey[];
+    expect(allFeatures).toHaveLength(14);
+    for (const f of allFeatures) {
+      expect(isPlanEntitledToFeature('free', f)).toBe(false);
+      expect(isPlanEntitledToFeature('weekly', f)).toBe(true);
+      expect(isPlanEntitledToFeature('monthly', f)).toBe(true);
+      expect(isPlanEntitledToFeature('lifetime', f)).toBe(true);
+    }
+
+    const monthly = PRICING_PLANS.find((p) => p.id === 'monthly')!;
+    expect(formatPlanPrice(monthly, 'INR')).toBe('₹299');
+    expect(formatPlanPrice(monthly, 'USD')).toBe('$5.99');
+
+    expect(getVideoDimensions('9:16', '1080p')).toEqual({ width: 1080, height: 1920 });
+    expect(getVideoDimensions('9:16', '4k')).toEqual({ width: 2160, height: 3840 });
+    const caps = detectVideoCapabilities();
+    expect(caps.canRecordVideo).toBe(false); // jsdom has no MediaRecorder
   });
 });

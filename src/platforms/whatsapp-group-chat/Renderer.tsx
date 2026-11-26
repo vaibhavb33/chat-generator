@@ -134,7 +134,7 @@ export function WhatsAppGroupChatRenderer({
       data-whatsapp-version={versionCfg.id}
       dir={theme.typography.direction}
       className={cn(
-        'relative flex min-h-[540px] flex-col',
+        'relative flex min-h-[540px] flex-1 flex-col',
         !isCustomImageWallpaper &&
           !isSolidWallpaper &&
           (dark ? 'whatsapp-wallpaper-dark' : 'whatsapp-wallpaper-light'),

@@ -84,7 +84,7 @@ test.describe('TASK 10 Acceptance: Discord Chat Generator (/discord-chat-generat
     await expect(surface.getByTestId('discord-channel-header')).toBeVisible();
 
     // Test Export Modal Trigger
-    const exportButton = page.getByTestId('top-export-button');
+    const exportButton = page.getByTestId('footer-download-button');
     if (await exportButton.isVisible()) {
       await exportButton.click();
       await expect(page.getByTestId('confirm-export-btn')).toBeVisible();

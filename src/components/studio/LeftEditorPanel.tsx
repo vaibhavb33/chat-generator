@@ -7,16 +7,19 @@ import {
   ArrowUp,
   Camera,
   Copy,
+  Crown,
   ImagePlus,
   Plus,
   Sparkles,
   Trash2,
   UserPlus,
   Users,
+  Wand2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/primitives';
+import { useBillingStore } from '@/core/billing/entitlements';
 import { GENERATOR_MAP } from '@/core/registry/generators';
 import { validateImageFileUpload } from '@/core/security/validation';
 import { getActiveConversation, useStudioStore } from '@/core/store/useStudioStore';
@@ -57,6 +60,8 @@ export function LeftEditorPanel({
   const setActiveStorySlide = useStudioStore((s) => s.setActiveStorySlide);
   const updateCallMeta = useStudioStore((s) => s.updateCallMeta);
   const setActiveTab = useStudioStore((s) => s.setActiveTab);
+  const openUpgradeModal = useBillingStore((s) => s.openUpgradeModal);
+  const hasFeatureAccess = useBillingStore((s) => s.hasFeatureAccess);
 
   const conv = getActiveConversation(project);
   const manifest = GENERATOR_MAP[project.platformId];
@@ -495,16 +500,38 @@ export function LeftEditorPanel({
                   <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                     Add Message
                   </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={onOpenScriptImport}
-                    className="h-7 px-2 text-[11px] text-indigo-700 dark:text-indigo-300"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    Paste Script
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      data-testid="ai-conversation-pro-btn"
+                      onClick={() => {
+                        if (!hasFeatureAccess('ai_conversation_generator')) {
+                          openUpgradeModal('ai_conversation_generator');
+                        } else {
+                          onOpenScriptImport();
+                        }
+                      }}
+                      className="h-7 px-2 text-[11px] text-amber-700 dark:text-amber-300"
+                    >
+                      <Wand2 className="h-3 w-3" />
+                      AI Writer
+                      {!hasFeatureAccess('ai_conversation_generator') && (
+                        <Crown className="h-2.5 w-2.5 text-amber-500" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onOpenScriptImport}
+                      className="h-7 px-2 text-[11px] text-indigo-700 dark:text-indigo-300"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Paste Script
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">

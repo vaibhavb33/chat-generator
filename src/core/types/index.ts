@@ -55,7 +55,51 @@ export type ReadReceiptStatus =
   | 'failed';
 
 export type ColorSchemeMode = 'light' | 'dark' | 'dim';
+export type DeviceType = 'iphone' | 'android';
 export type OsPlatformVariant = 'ios' | 'android' | 'desktop' | 'generic_filmsafe';
+
+export type ScreenViewMode =
+  | 'chat_thread'
+  | 'chat_list'
+  | 'home_feed'
+  | 'stories'
+  | 'post'
+  | 'dm';
+
+export interface ChatListRow {
+  id: string;
+  title: string;
+  previewText: string;
+  timeLabel: string;
+  unreadCount?: number;
+  unreadLabel?: string;
+  isPinned?: boolean;
+  isMuted?: boolean;
+  isCommunity?: boolean;
+  isArchived?: boolean;
+  hasMediaPreview?: boolean;
+  avatarColorHex: string;
+  avatarDataUrl?: string;
+  badgeIconText?: string;
+  folderTag?: string;
+}
+
+export type EditableElementKind =
+  | 'avatar'
+  | 'contact_name'
+  | 'message'
+  | 'timestamp'
+  | 'wallpaper'
+  | 'status_bar'
+  | 'navigation'
+  | 'attachment'
+  | 'chat_list_row';
+
+export interface EditableElementSelection {
+  kind: EditableElementKind;
+  targetId?: string;
+  label: string;
+}
 
 export type DeviceFramePreset =
   | 'none'
@@ -301,6 +345,9 @@ export interface Conversation {
     typingParticipantIds: string[];
     isEncryptedNoticeVisible?: boolean;
     isVanishMode?: boolean;
+    screenViewMode?: ScreenViewMode;
+    showHomeFeedStories?: boolean;
+    activeFolderTab?: string;
     channelName?: string;
     backButtonLabel?: string;
     serviceSubtitle?: string;
@@ -375,11 +422,13 @@ export interface Conversation {
     deviceMode?: 'ios' | 'android';
     simSlot?: string;
   };
+  chatListItems?: ChatListRow[];
   messages: Message[];
 }
 
 export interface PlatformTheme {
   platformId: string;
+  deviceType?: DeviceType;
   colorScheme: ColorSchemeMode;
   osVariant: OsPlatformVariant;
   uiVersion?: 'ios_modern' | 'android_modern' | 'android_classic';
@@ -425,6 +474,8 @@ export interface ExportSettings {
   backgroundMode: 'platform' | 'transparent' | 'solid';
   captureScope: 'viewport' | 'full_conversation';
   printFriendlyMonochrome: boolean;
+  quality?: number;
+  aspectRatioPreset?: 'device' | '9:16' | '4:5' | '1:1';
   useCustomDimensions?: boolean;
   customWidthPx?: number;
   customHeightPx?: number;
@@ -447,6 +498,8 @@ export interface AnimationTimeline {
   steps: TimelineStep[];
   videoOptions?: {
     aspectRatio: '9:16' | '4:5' | '1:1';
+    resolution?: '720p' | '1080p' | '4k';
+    fps?: 30 | 60;
     backgroundCss: string;
     showKeyboard: boolean;
     simulateVoicePlayback: boolean;

@@ -13,7 +13,7 @@ import {
   WHATSAPP_VERSION_CONFIGS,
   type WhatsAppUiVersion,
 } from '@/platforms/whatsapp-chat/versions';
-import type { ColorSchemeMode, DeviceFramePreset, OsPlatformVariant } from '@/core/types';
+import type { ColorSchemeMode, DeviceFramePreset } from '@/core/types';
 
 export function RightAppearancePanel({
   onExportJson,
@@ -26,6 +26,8 @@ export function RightAppearancePanel({
   const updateTheme = useStudioStore((s) => s.updateTheme);
   const updateStatusBar = useStudioStore((s) => s.updateStatusBar);
   const updateHeaderState = useStudioStore((s) => s.updateHeaderState);
+  const upsertChatListRow = useStudioStore((s) => s.upsertChatListRow);
+  const setDeviceType = useStudioStore((s) => s.setDeviceType);
   const setDeviceFrame = useStudioStore((s) => s.setDeviceFrame);
   const setSafetyBadge = useStudioStore((s) => s.setSafetyBadge);
   const [wallpaperError, setWallpaperError] = useState<string | null>(null);
@@ -89,12 +91,10 @@ export function RightAppearancePanel({
                 onChange={(e) => {
                   const nextVersion = e.target.value as WhatsAppUiVersion;
                   const cfg = WHATSAPP_VERSION_CONFIGS[nextVersion];
+                  setDeviceType(cfg.os === 'android' ? 'android' : 'iphone');
                   updateTheme({
                     uiVersion: nextVersion,
                     osVariant: cfg.os,
-                  });
-                  updateStatusBar({
-                    notchStyle: cfg.os === 'android' ? 'punch_hole' : 'dynamic_island',
                   });
                 }}
                 className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-900"
@@ -237,27 +237,59 @@ export function RightAppearancePanel({
               )}
             </div>
           </div>
-        ) : (
-          manifest?.capabilities.supportsOsSwitch && (
-            <label className="block space-y-1">
-              <span className="font-medium text-slate-600 dark:text-slate-400">
-                OS Skin Variant
-              </span>
-              <select
-                aria-label="OS Skin Variant"
-                value={project.theme.osVariant}
-                onChange={(e) =>
-                  updateTheme({ osVariant: e.target.value as OsPlatformVariant })
-                }
-                className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-900"
-              >
-                <option value="ios">iOS (Dynamic Island)</option>
-                <option value="android">Android (Material / Punch-Hole)</option>
-                <option value="generic_filmsafe">Film-Safe Generic (No Trademarks)</option>
-              </select>
-            </label>
-          )
+        ) : null}
+
+        {project.platformId === 'instagram-post' && (
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-800">
+            <span className="font-medium text-slate-800 dark:text-slate-200">
+              Show Stories Tray in Feed
+            </span>
+            <Switch
+              aria-label="Toggle home feed stories tray"
+              checked={conv.headerState.showHomeFeedStories ?? true}
+              onCheckedChange={(checked) =>
+                updateHeaderState({ showHomeFeedStories: checked })
+              }
+            />
+          </div>
         )}
+
+        {(project.platformId === 'whatsapp-chat' ||
+          project.platformId === 'whatsapp-group-chat' ||
+          project.platformId === 'telegram-chat') &&
+          conv.headerState.screenViewMode === 'chat_list' &&
+          (conv.chatListItems?.length ?? 0) > 0 && (
+            <div className="space-y-2 rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                Chat List Rows
+              </p>
+              <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+                {conv.chatListItems?.map((row) => (
+                  <div
+                    key={row.id}
+                    className="space-y-1 rounded-lg border border-slate-200/80 p-2 dark:border-slate-800"
+                  >
+                    <Input
+                      aria-label={`Chat row title ${row.id}`}
+                      value={row.title}
+                      onChange={(e) =>
+                        upsertChatListRow({ ...row, title: e.target.value })
+                      }
+                      className="h-7 text-xs font-semibold"
+                    />
+                    <Input
+                      aria-label={`Chat row preview ${row.id}`}
+                      value={row.previewText}
+                      onChange={(e) =>
+                        upsertChatListRow({ ...row, previewText: e.target.value })
+                      }
+                      className="h-7 text-[11px]"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         {project.platformId === 'instagram-dm' && (
           <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-800">
@@ -295,7 +327,7 @@ export function RightAppearancePanel({
 
         <label className="block space-y-1">
           <span className="font-medium text-slate-600 dark:text-slate-400">
-            Device Frame
+            Screen Presentation
           </span>
           <select
             aria-label="Customize device frame"
@@ -303,10 +335,12 @@ export function RightAppearancePanel({
             onChange={(e) => setDeviceFrame(e.target.value as DeviceFramePreset)}
             className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-900"
           >
-            <option value="iphone_16_pro">iPhone Bezel</option>
-            <option value="pixel_9">Android Pixel Bezel</option>
-            <option value="browser_window">Desktop Browser Card</option>
-            <option value="none">Clean Screen Only</option>
+            <option value={project.theme.deviceType === 'android' ? 'pixel_9' : 'iphone_16_pro'}>
+              {project.theme.deviceType === 'android'
+                ? 'Android Device Frame'
+                : 'iPhone Device Frame'}
+            </option>
+            <option value="none">Edge-to-Edge Screen Only</option>
           </select>
         </label>
       </section>

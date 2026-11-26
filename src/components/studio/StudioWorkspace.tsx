@@ -6,10 +6,8 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
-  Download,
   Palette,
   SlidersHorizontal,
-  Undo2,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +15,7 @@ import dynamic from 'next/dynamic';
 import { StudioTopBar } from '@/components/studio/StudioTopBar';
 import { LeftEditorPanel } from '@/components/studio/LeftEditorPanel';
 import { RightAppearancePanel } from '@/components/studio/RightAppearancePanel';
+import { StudioFooterBar } from '@/components/studio/StudioFooterBar';
 import { VideoTimelineBar } from '@/components/studio/VideoTimelineBar';
 import { PlatformRendererHost } from '@/platforms/PlatformRendererHost';
 
@@ -40,6 +39,14 @@ const ConfirmClearModal = dynamic(
   () => import('@/components/studio/StudioModals').then((m) => m.ConfirmClearModal),
   { ssr: false }
 );
+const PremiumUpgradeModal = dynamic(
+  () =>
+    import('@/components/studio/PremiumUpgradeModal').then(
+      (m) => m.PremiumUpgradeModal
+    ),
+  { ssr: false }
+);
+
 import {
   exportProjectJsonBundle,
   parseImportedProjectJson,
@@ -62,10 +69,12 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
   const loadProject = useStudioStore((s) => s.loadProject);
   const undo = useStudioStore((s) => s.undo);
   const redo = useStudioStore((s) => s.redo);
-  const pastCount = useStudioStore((s) => s.past.length);
+  const setEditorOpen = useStudioStore((s) => s.setEditorOpen);
   const ui = useStudioStore((s) => s.ui);
 
   const exportRef = useRef<HTMLDivElement | null>(null);
+  const mobilePanelsRef = useRef<HTMLElement | null>(null);
+  const desktopPanelsRef = useRef<HTMLElement | null>(null);
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [scriptModalOpen, setScriptModalOpen] = useState(false);
@@ -107,6 +116,35 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [undo, redo]);
 
+  // Focus appropriate panel when user clicks elements in preview or clicks Edit
+  const focusEditor = () => {
+    setEditorOpen(true);
+    const kind = useStudioStore.getState().ui.selectedElement?.kind;
+    if (kind === 'wallpaper' || kind === 'status_bar') {
+      setMobilePanelMode('style');
+    } else if (mobilePanelMode === 'closed') {
+      setMobilePanelMode('content');
+    }
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      mobilePanelsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const handleToggleEdit = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      if (mobilePanelMode === 'closed') {
+        setEditorOpen(true);
+        setMobilePanelMode('content');
+        mobilePanelsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        setMobilePanelMode('closed');
+        setEditorOpen(false);
+      }
+      return;
+    }
+    setEditorOpen(!ui.editorOpen || ui.previewMode);
+  };
+
   const handleImportJsonFile = async (file: File) => {
     setImportError(null);
     try {
@@ -124,9 +162,10 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
   };
 
   const activeError = errorMessage || importError;
+  const showDesktopSidebars = ui.editorOpen && !ui.previewMode;
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="flex min-h-screen flex-col bg-slate-50 pb-20 dark:bg-slate-950">
       <StudioTopBar
         onOpenExport={() => setExportModalOpen(true)}
         onOpenTemplates={() => setTemplatesModalOpen(true)}
@@ -156,11 +195,14 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
         </div>
       )}
 
-      {/* Main Responsive Workspace */}
-      <div className="flex flex-1 flex-col lg:grid lg:grid-cols-[330px_1fr_300px] xl:grid-cols-[350px_1fr_320px] lg:overflow-hidden">
+      {/* Main Responsive Workspace (Preview always stays visible & interactive) */}
+      <div className="flex flex-1 flex-col lg:grid lg:grid-cols-[330px_1fr_300px] xl:grid-cols-[350px_1fr_320px]">
         {/* DESKTOP LEFT PANEL */}
-        {!ui.previewMode && (
-          <aside className="hidden border-r border-slate-200 bg-white lg:block lg:h-[calc(100vh-3.5rem)] lg:overflow-hidden dark:border-slate-800 dark:bg-slate-950">
+        {showDesktopSidebars && (
+          <aside
+            ref={desktopPanelsRef}
+            className="hidden border-r border-slate-200 bg-white lg:block lg:h-[calc(100vh-8rem)] lg:overflow-hidden dark:border-slate-800 dark:bg-slate-950"
+          >
             <LeftEditorPanel
               onOpenScriptImport={() => setScriptModalOpen(true)}
               onRequestClearAll={() => setConfirmClearOpen(true)}
@@ -168,26 +210,29 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
           </aside>
         )}
 
-        {/* CENTER LIVE PREVIEW STAGE (Preview-First on Mobile) */}
+        {/* CENTER LIVE FULL-SCREEN DEVICE PREVIEW STAGE */}
         <main
           className={cn(
-            'studio-dot-grid flex flex-col items-center justify-start overflow-y-auto px-3 py-6 sm:px-6 lg:py-8',
-            ui.previewMode && 'lg:col-span-3'
+            'studio-dot-grid flex flex-col items-center justify-start overflow-y-auto px-2 py-4 sm:px-6 lg:py-6',
+            !showDesktopSidebars && 'lg:col-span-3'
           )}
         >
           {isHydrating ? (
             <div
               data-testid="studio-loading-skeleton"
-              className="h-[580px] w-full max-w-[390px] animate-pulse rounded-[38px] border border-slate-200 bg-white/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
+              className="h-[640px] w-full max-w-[393px] animate-pulse rounded-[38px] border border-slate-200 bg-white/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
             />
           ) : (
-            <PlatformRendererHost exportRef={exportRef} />
+            <PlatformRendererHost
+              exportRef={exportRef}
+              onRequestOpenEdit={focusEditor}
+            />
           )}
         </main>
 
         {/* DESKTOP RIGHT PANEL */}
-        {!ui.previewMode && (
-          <aside className="hidden border-l border-slate-200 bg-white lg:block lg:h-[calc(100vh-3.5rem)] lg:overflow-y-auto dark:border-slate-800 dark:bg-slate-950">
+        {showDesktopSidebars && (
+          <aside className="hidden border-l border-slate-200 bg-white lg:block lg:h-[calc(100vh-8rem)] lg:overflow-y-auto dark:border-slate-800 dark:bg-slate-950">
             <RightAppearancePanel
               onExportJson={() => exportProjectJsonBundle(project)}
               onImportJsonFile={(f) => void handleImportJsonFile(f)}
@@ -195,10 +240,11 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
           </aside>
         )}
 
-        {/* MOBILE EXPANDABLE EDITING DRAWER (Below Preview, above fixed export bar) */}
+        {/* MOBILE EXPANDABLE EDITING PANEL (Below Preview, above sticky 3-action footer) */}
         <section
+          ref={mobilePanelsRef}
           aria-label="Mobile editing panels"
-          className="border-t border-slate-200 bg-white pb-20 lg:hidden dark:border-slate-800 dark:bg-slate-950"
+          className="border-t border-slate-200 bg-white pb-6 lg:hidden dark:border-slate-800 dark:bg-slate-950"
         >
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-800">
             <div className="flex items-center gap-1.5">
@@ -218,7 +264,7 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
                 onClick={() => setMobilePanelMode('style')}
               >
                 <Palette className="h-3.5 w-3.5" />
-                Style & Frame
+                Style &amp; Frame
               </Button>
             </div>
             <Button
@@ -256,37 +302,12 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
       {/* Bottom Video Mode Timeline */}
       <VideoTimelineBar />
 
-      {/* Mobile Fixed Export Action Bar */}
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-2 border-t border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur-md lg:hidden dark:border-slate-800 dark:bg-slate-950/95">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={undo}
-          disabled={pastCount === 0}
-        >
-          <Undo2 className="h-3.5 w-3.5" />
-          Undo
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setTemplatesModalOpen(true)}
-        >
-          Templates
-        </Button>
-        <Button
-          type="button"
-          variant="gradient"
-          size="sm"
-          className="flex-1"
-          onClick={() => setExportModalOpen(true)}
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export PNG
-        </Button>
-      </div>
+      {/* Phase 5: Sticky Responsive Footer with EXACTLY THREE PRIMARY ACTIONS (Edit, Download, Save Chat) */}
+      <StudioFooterBar
+        onToggleEdit={handleToggleEdit}
+        onOpenDownload={() => setExportModalOpen(true)}
+        onOpenSavedProjects={() => setProjectsModalOpen(true)}
+      />
 
       {/* Modals */}
       <ExportModal
@@ -311,6 +332,7 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
         onOpenChange={setConfirmClearOpen}
         onConfirm={clearAllMessages}
       />
+      <PremiumUpgradeModal />
     </div>
   );
 }

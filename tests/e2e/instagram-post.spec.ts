@@ -100,7 +100,7 @@ test.describe('TASK 06 Acceptance: Instagram Post Generator', () => {
     await expect(surface).toContainText('Arashiyama');
 
     // 15. Export PNG, JPG and WebP
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     await expect(page.getByTestId('confirm-export-btn')).toBeVisible();
 
     const pngDl = page.waitForEvent('download');

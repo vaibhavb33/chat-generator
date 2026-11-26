@@ -3,6 +3,7 @@
 import React from 'react';
 import { PhoneStatusBar } from '@/components/engine/PhoneStatusBar';
 import { ParticipantAvatar, VerifiedIcon } from '@/components/engine/ParticipantAvatar';
+import { useStudioStore } from '@/core/store/useStudioStore';
 import type { Participant, PlatformTheme } from '@/core/types';
 import { cn } from '@/lib/utils';
 
@@ -35,23 +36,61 @@ export function ChatHeader({
   className,
   style,
 }: ChatHeaderProps) {
+  const selectedElement = useStudioStore((s) => s.ui.selectedElement);
+  const setSelectedElement = useStudioStore((s) => s.setSelectedElement);
+
+  const isAvatarSelected = selectedElement?.kind === 'avatar';
+  const isNameSelected = selectedElement?.kind === 'contact_name';
+
   return (
     <div className={cn('select-none', className)} style={style}>
       <PhoneStatusBar
         statusBar={theme.statusBar}
         osVariant={theme.osVariant}
         darkBg={darkBg}
+        onSelectStatusBar={() =>
+          setSelectedElement({ kind: 'status_bar', label: 'Status Bar' })
+        }
       />
 
       {centered ? (
         <div className="relative flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-1">{leftSlot}</div>
           <div className="flex flex-col items-center">
-            <ParticipantAvatar participant={participant} size="sm" />
-            <div className="mt-1 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedElement({
+                  kind: 'avatar',
+                  targetId: participant?.id,
+                  label: 'Profile Photo',
+                })
+              }
+              className={cn(
+                'rounded-full transition-all cursor-pointer',
+                isAvatarSelected && 'ring-2 ring-indigo-500 ring-offset-2'
+              )}
+              aria-label="Edit profile photo"
+            >
+              <ParticipantAvatar participant={participant} size="sm" />
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedElement({
+                  kind: 'contact_name',
+                  targetId: participant?.id,
+                  label: title,
+                })
+              }
+              className={cn(
+                'mt-1 flex items-center gap-1 rounded px-1 transition-all cursor-pointer',
+                isNameSelected && 'ring-2 ring-indigo-500'
+              )}
+            >
               <span className="text-[12px] font-semibold leading-none">{title}</span>
               {showVerified && <VerifiedIcon type={participant?.verifiedBadge} />}
-            </div>
+            </button>
             {subtitle && (
               <span className="mt-0.5 text-[10px] opacity-60">{subtitle}</span>
             )}
@@ -62,12 +101,41 @@ export function ChatHeader({
         <div className="flex items-center justify-between gap-2 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
             {leftSlot}
-            <ParticipantAvatar
-              participant={participant}
-              size="sm"
-              onlineDot={showOnlineDot}
-            />
-            <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedElement({
+                  kind: 'avatar',
+                  targetId: participant?.id,
+                  label: 'Profile Photo',
+                })
+              }
+              className={cn(
+                'shrink-0 rounded-full transition-all cursor-pointer',
+                isAvatarSelected && 'ring-2 ring-indigo-500 ring-offset-1'
+              )}
+              aria-label="Edit profile photo"
+            >
+              <ParticipantAvatar
+                participant={participant}
+                size="sm"
+                onlineDot={showOnlineDot}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedElement({
+                  kind: 'contact_name',
+                  targetId: participant?.id,
+                  label: title,
+                })
+              }
+              className={cn(
+                'min-w-0 rounded px-1 text-left transition-all cursor-pointer',
+                isNameSelected && 'ring-2 ring-indigo-500'
+              )}
+            >
               <div className="flex items-center gap-1">
                 <p className="truncate text-[14px] font-semibold leading-tight">
                   {title}
@@ -77,7 +145,7 @@ export function ChatHeader({
               {subtitle && (
                 <p className="truncate text-[11px] opacity-75">{subtitle}</p>
               )}
-            </div>
+            </button>
           </div>
           <div className="flex items-center gap-3 opacity-90">{rightSlot}</div>
         </div>

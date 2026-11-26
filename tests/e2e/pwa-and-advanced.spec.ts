@@ -76,7 +76,7 @@ test.describe('Prompt 05: Advanced Features, Image/Video Export & PWA Acceptance
       page.getByTestId('mockup-export-surface').getByText('Edited while offline!')
     ).toBeVisible();
 
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
     const dl = await downloadPromise;
@@ -115,7 +115,7 @@ test.describe('Prompt 05: Advanced Features, Image/Video Export & PWA Acceptance
       page.getByTestId('mockup-export-surface').getByText('Story preview').first()
     ).toBeVisible();
 
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     await page.getByRole('button', { name: 'WEBP' }).click();
     await page.getByLabel(/Custom Output Dimensions/i).check();
     await page.getByLabel('Custom width px').fill('1080');
@@ -142,11 +142,10 @@ test.describe('Prompt 05: Advanced Features, Image/Video Export & PWA Acceptance
     await expect(page.getByTestId('simulated-keyboard-overlay')).toBeVisible();
 
     await bar.getByLabel('Video aspect ratio').selectOption('4:5');
-    const dlPromise = page.waitForEvent('download');
     await page.getByTestId('export-video-btn').click();
-    const dl = await dlPromise;
-    expect(dl.suggestedFilename()).toMatch(/\.(mp4|webm|html)$/);
-    await expect(page.getByTestId('video-export-success')).toBeVisible();
+    await expect(page.getByTestId('premium-upgrade-modal')).toBeVisible();
+    await page.getByTestId('upgrade-checkout-btn').click();
+    await expect(page.getByTestId('billing-provider-notice')).toBeVisible();
   });
 
   test('9-category template library supports saving, duplicating, and applying templates', async ({

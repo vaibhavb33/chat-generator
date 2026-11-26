@@ -113,7 +113,7 @@ test.describe('TASK 05 Acceptance: Complete Instagram Story Generator', () => {
     );
 
     // Export PNG, JPG, and WebP
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
 
     const pngDl = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();

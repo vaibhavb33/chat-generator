@@ -106,7 +106,7 @@ test.describe('TASK 07 Acceptance: iMessage Generator (/imessage-generator)', ()
     await expect(surface).toContainText('Emma Watson');
 
     // 16. Verify Exports (PNG, JPG, WebP)
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
 
     const pngDl = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();

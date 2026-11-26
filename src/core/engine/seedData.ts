@@ -13,11 +13,13 @@ function nowIso(): string {
 
 export function createDefaultTheme(platformId: string): PlatformTheme {
   const isDiscord = platformId === 'discord-chat';
+  const isAndroidDefault = platformId === 'android-messages';
   return {
     platformId,
+    deviceType: isAndroidDefault ? 'android' : 'iphone',
     colorScheme: isDiscord ? 'dark' : 'light',
-    osVariant: platformId === 'android-messages' ? 'android' : 'ios',
-    uiVersion: platformId === 'android-messages' ? 'android_modern' : 'ios_modern',
+    osVariant: isAndroidDefault ? 'android' : 'ios',
+    uiVersion: isAndroidDefault ? 'android_modern' : 'ios_modern',
     bubbleStyle: platformId === 'imessage' ? 'imessage_blue' : 'native',
     accentColorHex: platformId === 'instagram-dm' ? '#7C3AED' : '#4F46E5',
     wallpaper: {
@@ -25,14 +27,14 @@ export function createDefaultTheme(platformId: string): PlatformTheme {
       value: '#ECE5DD',
     },
     statusBar: {
-      visible: platformId !== 'discord-chat' && platformId !== 'instagram-post',
+      visible: platformId !== 'discord-chat',
       timeLabel: '9:41',
       batteryPercent: 86,
       isCharging: false,
       wifiBars: 3,
       signalBars: 4,
       carrierLabel: '5G',
-      notchStyle: platformId === 'android-messages' ? 'punch_hole' : 'dynamic_island',
+      notchStyle: isAndroidDefault ? 'punch_hole' : 'dynamic_island',
     },
     typography: {
       fontScale: 1,
@@ -149,6 +151,16 @@ export function createSeedProject(platformId: string): Project {
       typingParticipantIds: [],
       isEncryptedNoticeVisible: manifest.id === 'whatsapp-chat',
       isVanishMode: false,
+      screenViewMode:
+        manifest.id === 'instagram-post'
+          ? 'home_feed'
+          : manifest.id === 'instagram-story'
+            ? 'stories'
+            : manifest.id === 'instagram-dm'
+              ? 'dm'
+              : 'chat_thread',
+      showHomeFeedStories: manifest.id === 'instagram-post',
+      activeFolderTab: 'All',
       channelName: 'launch-weekend',
       showPinnedBar: manifest.id === 'telegram-chat',
       pinnedBarTitle: manifest.id === 'telegram-chat' ? 'Pinned Message' : undefined,
@@ -336,6 +348,108 @@ export function createSeedProject(platformId: string): Project {
             deviceMode: 'ios',
           }
         : undefined,
+    chatListItems:
+      manifest.id === 'whatsapp-chat' || manifest.id === 'whatsapp-group-chat'
+        ? [
+            {
+              id: 'wa_row_1',
+              title: 'Maya Lin',
+              previewText: 'Perfect, sending the high-res export in 3... 2... 1 🚀',
+              timeLabel: '9:41 AM',
+              unreadCount: 0,
+              avatarColorHex: '#7C3AED',
+              isPinned: true,
+            },
+            {
+              id: 'wa_row_2',
+              title: 'Weekend Shoot Crew 🎬',
+              previewText: 'Announcements ▸ Final deck PDF & stage call sheet',
+              timeLabel: '9:18 AM',
+              unreadCount: 12,
+              isCommunity: true,
+              avatarColorHex: '#008069',
+            },
+            {
+              id: 'wa_row_3',
+              title: 'Daniel Ortiz',
+              previewText: '📷 Location scout photos from Bandra studio',
+              timeLabel: 'Yesterday',
+              unreadCount: 3,
+              hasMediaPreview: true,
+              avatarColorHex: '#2563EB',
+            },
+            {
+              id: 'wa_row_4',
+              title: 'Priya Nair (Design)',
+              previewText: 'Updated the iOS 26 dark mode color tokens',
+              timeLabel: 'Yesterday',
+              unreadCount: 1,
+              avatarColorHex: '#D97706',
+            },
+            {
+              id: 'wa_row_5',
+              title: 'Creator Collective India',
+              previewText: 'Aarav: Anyone filming 9:16 Reels today?',
+              timeLabel: 'Tue',
+              unreadCount: 47,
+              avatarColorHex: '#059669',
+            },
+          ]
+        : manifest.id === 'telegram-chat'
+          ? [
+              {
+                id: 'tg_row_0',
+                title: 'Archived Chats',
+                previewText: 'Creator Foundry, Design Systems Weekly, Launch Notes...',
+                timeLabel: '',
+                unreadCount: 8,
+                isArchived: true,
+                avatarColorHex: '#3390EC',
+                folderTag: 'All',
+              },
+              {
+                id: 'tg_row_1',
+                title: 'Launch Crew Alpha',
+                previewText: '🚀 Release candidate build #304 ready for QA',
+                timeLabel: '10:28 PM',
+                unreadCount: 0,
+                isPinned: true,
+                avatarColorHex: '#3390EC',
+                folderTag: 'Work',
+              },
+              {
+                id: 'tg_row_2',
+                title: 'UI Design Weekly',
+                previewText: '📊 iOS 26 Liquid Glass vs Material 3 Expressive guide',
+                timeLabel: '10:24 PM',
+                unreadLabel: '1.2K',
+                unreadCount: 1200,
+                isMuted: true,
+                avatarColorHex: '#2AABEE',
+                folderTag: 'Design',
+              },
+              {
+                id: 'tg_row_3',
+                title: 'Maya Lin',
+                previewText: 'Forwarded the final Figma & export links!',
+                timeLabel: '9:40 PM',
+                unreadCount: 4,
+                avatarColorHex: '#7C3AED',
+                folderTag: 'Work',
+              },
+              {
+                id: 'tg_row_4',
+                title: 'Studio Announcements',
+                previewText: 'New 9:16 Reels export presets live in v2.4',
+                timeLabel: '23/04',
+                unreadLabel: '35',
+                unreadCount: 35,
+                isPinned: true,
+                avatarColorHex: '#4EA646',
+                folderTag: 'Design',
+              },
+            ]
+          : undefined,
     messages: buildSeedMessages(manifest.id, selfId, otherId, thirdId, fourthId),
   };
 

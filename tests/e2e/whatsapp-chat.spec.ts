@@ -115,7 +115,7 @@ test.describe('TASK 02 Acceptance: Realistic WhatsApp Chat Generator', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/whatsapp-chat-generator', { waitUntil: 'networkidle' });
 
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
 
     const pngDl = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();

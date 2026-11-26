@@ -135,7 +135,7 @@ test.describe('TASK 04 Acceptance: Instagram DM Generator', () => {
     await mobilePanels.getByTestId('add-message-btn').click();
     await expect(page.getByTestId('mockup-export-surface')).toContainText('Mobile IG DM test message');
 
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     const pngDl = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
     expect((await pngDl).suggestedFilename()).toMatch(/\.png$/);

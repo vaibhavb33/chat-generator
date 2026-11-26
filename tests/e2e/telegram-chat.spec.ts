@@ -81,7 +81,7 @@ test.describe('TASK 09 Acceptance: Telegram Chat Generator (/telegram-chat-gener
     await expect(surface.getByTestId('telegram-header')).toBeVisible();
 
     // Test Export Modal Trigger
-    const exportButton = page.getByTestId('top-export-button');
+    const exportButton = page.getByTestId('footer-download-button');
     if (await exportButton.isVisible()) {
       await exportButton.click();
       await expect(page.getByTestId('confirm-export-btn')).toBeVisible();

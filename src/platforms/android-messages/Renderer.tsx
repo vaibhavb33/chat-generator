@@ -107,16 +107,19 @@ export function AndroidMessagesRenderer({
     <div
       data-testid="renderer-android-messages"
       dir={theme.typography.direction}
-      className={cn('flex min-h-[580px] flex-col font-sans select-none', bgMain)}
+      className={cn('flex min-h-[580px] flex-1 flex-col font-sans select-none', bgMain)}
       style={{ fontSize: `${theme.typography.fontScale}rem` }}
     >
-      {/* 1. Android Status Bar (with Punch Hole Camera) */}
+      {/* 1. Android / iPhone Status Bar */}
       <StatusBar
         statusBar={{
           ...theme.statusBar,
-          notchStyle: theme.statusBar.notchStyle || 'punch_hole',
+          notchStyle:
+            theme.deviceType === 'iphone'
+              ? 'dynamic_island'
+              : theme.statusBar.notchStyle || 'punch_hole',
         }}
-        osVariant="android"
+        osVariant={theme.deviceType === 'iphone' ? 'ios' : 'android'}
         darkBg={dark}
         className={cn(
           dark ? 'bg-[#121318] text-white' : 'bg-[#EFF3F9] text-black'

@@ -44,7 +44,8 @@ export function IMessageRenderer({
   onDeleteMessage,
 }: PlatformRendererProps) {
   const dark = theme.colorScheme === 'dark' || theme.colorScheme === 'dim';
-  const isSmsGreen = theme.bubbleStyle === 'sms_green';
+  const isAndroidFallback = theme.deviceType === 'android' || theme.osVariant === 'android';
+  const isSmsGreen = theme.bubbleStyle === 'sms_green' || isAndroidFallback;
   const isGroup = Boolean(conversation.groupMeta?.groupName);
 
   const other =
@@ -74,20 +75,34 @@ export function IMessageRenderer({
       data-testid="renderer-imessage"
       dir={theme.typography.direction}
       className={cn(
-        'flex min-h-[580px] flex-col font-sans select-none',
+        'flex min-h-[580px] flex-1 flex-col font-sans select-none',
         dark ? 'bg-[#000000] text-white' : 'bg-[#FFFFFF] text-black'
       )}
       style={{ fontSize: `${theme.typography.fontScale}rem` }}
     >
-      {/* 1. iOS Status Bar */}
+      {/* 1. Status Bar */}
       <StatusBar
         statusBar={theme.statusBar}
-        osVariant={theme.osVariant || 'ios'}
+        osVariant={isAndroidFallback ? 'android' : 'ios'}
         darkBg={dark}
         className={cn(
           dark ? 'bg-[#121214]/95 text-white' : 'bg-[#F9F9FB]/95 text-black'
         )}
       />
+
+      {isAndroidFallback && (
+        <div
+          data-testid="imessage-android-notice"
+          className={cn(
+            'border-b px-3 py-1 text-center text-[10px] font-medium',
+            dark
+              ? 'border-emerald-900/50 bg-emerald-950/50 text-emerald-300'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          )}
+        >
+          Android device selected: showing cross-platform SMS/RCS compatibility preview
+        </div>
+      )}
 
       {/* 2. iOS Authentic Chat Header */}
       <div

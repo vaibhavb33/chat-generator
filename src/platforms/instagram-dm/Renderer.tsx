@@ -3,6 +3,7 @@
 import React from 'react';
 import {
   ArrowLeft,
+  ChevronLeft,
   Heart,
   Info,
   Mic,
@@ -11,6 +12,7 @@ import {
   Video,
 } from 'lucide-react';
 import type { PlatformRendererProps } from '@/platforms/whatsapp-chat/Renderer';
+import { StatusBar } from '@/components/shared-renderers/StatusBar';
 import {
   ChatTimestamp,
   MessageActions,
@@ -22,33 +24,6 @@ import { cn } from '@/lib/utils';
 import type { Message, Participant } from '@/core/types';
 
 /* ─────────────────────────── helpers ─────────────────────────── */
-
-function IgStatusBar({ dark, timeLabel }: { dark: boolean; timeLabel: string }) {
-  return (
-    <div
-      className={cn(
-        'flex h-[44px] shrink-0 items-center justify-between px-6 text-[12px] font-semibold',
-        dark ? 'bg-black text-white' : 'bg-white text-black'
-      )}
-    >
-      <span>{timeLabel}</span>
-      <div className="flex items-center gap-1.5">
-        <span className="text-[10px]">●●●</span>
-        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
-          <rect x="0" y="4" width="3" height="8" rx="1" opacity="0.4" />
-          <rect x="4" y="2.5" width="3" height="9.5" rx="1" opacity="0.6" />
-          <rect x="8" y="1" width="3" height="11" rx="1" opacity="0.8" />
-          <rect x="12" y="0" width="3" height="12" rx="1" />
-        </svg>
-        <svg width="25" height="12" viewBox="0 0 25 12" fill="currentColor">
-          <rect x="0" y="1" width="22" height="10" rx="2" stroke="currentColor" strokeWidth="1.2" fill="none" opacity="0.5" />
-          <rect x="22.5" y="3.5" width="2" height="5" rx="1" opacity="0.5" />
-          <rect x="1.5" y="2.5" width="17" height="7" rx="1.5" />
-        </svg>
-      </div>
-    </div>
-  );
-}
 
 function VerifiedBadge({ type }: { type: string }) {
   if (type === 'blue') {
@@ -525,19 +500,24 @@ export function InstagramDmRenderer({
     );
   }
 
+  const isAndroid = theme.deviceType === 'android' || theme.osVariant === 'android';
+
   /* ─────────────────────────── JSX ─────────────────────────── */
   return (
     <div
       data-testid="renderer-instagram-dm"
       data-ig-dark={dark ? 'true' : 'false'}
+      data-device-type={isAndroid ? 'android' : 'iphone'}
       dir={theme.typography.direction}
-      className={cn('flex min-h-[580px] flex-col', dark ? 'bg-black text-white' : 'bg-white text-slate-900')}
+      className={cn('flex min-h-[600px] flex-1 flex-col', dark ? 'bg-black text-white' : 'bg-white text-slate-900')}
       style={{ fontSize: `${theme.typography.fontScale}rem` }}
     >
       {/* STATUS BAR */}
-      {theme.statusBar.visible && (
-        <IgStatusBar dark={dark} timeLabel={theme.statusBar.timeLabel} />
-      )}
+      <StatusBar
+        statusBar={theme.statusBar}
+        osVariant={isAndroid ? 'android' : 'ios'}
+        darkBg={dark}
+      />
 
       {/* HEADER */}
       <div
@@ -549,7 +529,11 @@ export function InstagramDmRenderer({
             : 'border-b border-slate-200/80 bg-white'
         )}
       >
-        <ArrowLeft className="h-5 w-5 shrink-0 cursor-pointer" />
+        {isAndroid ? (
+          <ArrowLeft className="h-5 w-5 shrink-0 cursor-pointer" />
+        ) : (
+          <ChevronLeft className="h-6 w-6 -ml-1.5 shrink-0 cursor-pointer stroke-[2.2]" />
+        )}
 
         <div className="relative shrink-0">
           <AvatarCircle participant={other} size="md" />

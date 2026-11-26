@@ -136,7 +136,7 @@ test.describe('TASK 11 Acceptance: Fake Call Screen Generator (/fake-call-genera
     await page.goto('/fake-call-generator', { waitUntil: 'networkidle' });
 
     // Open export dialog
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
     const download = await downloadPromise;

@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Check,
   CheckCheck,
+  ChevronLeft,
   FileText,
   MapPin,
   MoreVertical,
@@ -95,17 +96,60 @@ export function TelegramChatRenderer({
     'Release candidate build #304 ready for QA';
 
   // Palette mappings
-  const headerBg = dark ? 'bg-[#17212B] text-white' : 'bg-[#517DA2] text-white';
+  const isAndroid = theme.deviceType === 'android' || theme.osVariant === 'android';
+  const headerBg = dark
+    ? isAndroid
+      ? 'bg-[#17212B] text-white'
+      : 'bg-[#1C1C1E]/90 text-white backdrop-blur-md border-b border-white/10'
+    : isAndroid
+      ? 'bg-[#517DA2] text-white'
+      : 'bg-[#F8F9FA]/90 text-slate-950 backdrop-blur-md border-b border-slate-200/80';
   const pinnedBarBg = dark
     ? 'bg-[#1E2C3A] border-[#2B3B4C] text-slate-200'
     : 'bg-[#F4F4F5] border-black/5 text-slate-800';
 
+  const avatarNode = (
+    <div className="relative shrink-0">
+      {isGroup ? (
+        conversation.groupMeta?.groupAvatarDataUrl ? (
+          <img
+            src={conversation.groupMeta.groupAvatarDataUrl}
+            alt={headerTitle}
+            className="h-9 w-9 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-[#3390EC] to-[#2AABEE] text-sm font-bold text-white shadow-xs">
+            {headerTitle.slice(0, 2).toUpperCase()}
+          </div>
+        )
+      ) : otherParticipant?.avatarDataUrl ? (
+        <img
+          src={otherParticipant.avatarDataUrl}
+          alt={headerTitle}
+          className="h-9 w-9 rounded-full object-cover"
+        />
+      ) : (
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-xs"
+          style={{
+            backgroundColor:
+              otherParticipant?.avatarFallbackColor ||
+              getTelegramSenderColor(otherParticipant?.id || 'contact', headerTitle),
+          }}
+        >
+          {headerTitle.slice(0, 1).toUpperCase()}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div
       data-testid="renderer-telegram-chat"
+      data-device-type={isAndroid ? 'android' : 'iphone'}
       dir={theme.typography.direction}
       className={cn(
-        'flex min-h-[580px] flex-col font-sans select-none',
+        'flex min-h-[600px] flex-1 flex-col font-sans select-none',
         dark
           ? 'telegram-wallpaper-dark text-slate-100'
           : 'telegram-wallpaper-light text-slate-900'
@@ -115,74 +159,128 @@ export function TelegramChatRenderer({
       {/* 1. Status Bar */}
       <StatusBar
         statusBar={theme.statusBar}
-        osVariant={theme.osVariant || 'android'}
-        darkBg={dark}
+        osVariant={isAndroid ? 'android' : 'ios'}
+        darkBg={dark || isAndroid}
         className={cn(
-          dark ? 'bg-[#17212B] text-white' : 'bg-[#517DA2] text-white'
+          dark
+            ? isAndroid
+              ? 'bg-[#17212B] text-white'
+              : 'bg-[#1C1C1E]/90 text-white'
+            : isAndroid
+              ? 'bg-[#517DA2] text-white'
+              : 'bg-[#F8F9FA]/90 text-slate-950'
         )}
       />
 
-      {/* 2. Telegram Header */}
-      <div
-        data-testid="telegram-header"
-        className={cn('flex items-center justify-between px-3 py-2 transition-colors', headerBg)}
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <button
-            type="button"
-            className="p-1 -ml-1 text-white/90 hover:text-white rounded-full transition-colors"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+      {/* 2. Telegram Header (iOS: < Back left, Title centered, Avatar right | Android: <- + Avatar + Title left) */}
+      {isAndroid ? (
+        <div
+          data-testid="telegram-header"
+          className={cn('flex items-center justify-between px-3 py-2 transition-colors', headerBg)}
+        >
+          <div className="flex min-w-0 items-center gap-2.5">
+            <button
+              type="button"
+              className="-ml-1 rounded-full p-1 text-white/90 transition-colors hover:text-white"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
 
-          {/* Avatar */}
-          <div className="relative shrink-0">
-            {isGroup ? (
-              conversation.groupMeta?.groupAvatarDataUrl ? (
-                <img
-                  src={conversation.groupMeta.groupAvatarDataUrl}
-                  alt={headerTitle}
-                  className="h-9 w-9 rounded-full object-cover"
-                />
-              ) : (
-                <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-[#3390EC] to-[#2AABEE] text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                  {headerTitle.slice(0, 2).toUpperCase()}
-                </div>
-              )
-            ) : otherParticipant?.avatarDataUrl ? (
-              <img
-                src={otherParticipant.avatarDataUrl}
-                alt={headerTitle}
-                className="h-9 w-9 rounded-full object-cover"
-              />
-            ) : (
-              <div
-                className="h-9 w-9 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-xs"
-                style={{
-                  backgroundColor:
-                    otherParticipant?.avatarFallbackColor ||
-                    getTelegramSenderColor(otherParticipant?.id || 'contact', headerTitle),
-                }}
-              >
-                {headerTitle.slice(0, 1).toUpperCase()}
+            {avatarNode}
+
+            <div className="flex min-w-0 flex-col leading-tight">
+              <div className="flex items-center gap-1.5">
+                <span
+                  data-testid="telegram-title"
+                  className="truncate text-[15px] font-semibold tracking-tight text-white"
+                >
+                  {headerTitle}
+                </span>
+                {otherParticipant?.verifiedBadge && otherParticipant.verifiedBadge !== 'none' && (
+                  <span
+                    title="Verified Account"
+                    className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[9px] font-bold text-[#3390EC]"
+                  >
+                    ✓
+                  </span>
+                )}
               </div>
-            )}
+              <span
+                data-testid="telegram-subtitle"
+                className={cn(
+                  'truncate text-[12px]',
+                  headerSubtitle === 'online' || isTypingPreview
+                    ? 'font-medium text-[#87D4FF]'
+                    : 'text-white/75'
+                )}
+              >
+                {headerSubtitle}
+              </span>
+            </div>
           </div>
 
-          {/* Title & Subtitle */}
-          <div className="flex flex-col min-w-0 leading-tight">
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-3 text-white/90">
+            {!isGroup && (
+              <button
+                type="button"
+                className="rounded-full p-1 transition-colors hover:text-white"
+                aria-label="Voice Call"
+              >
+                <Phone className="h-4 w-4" />
+              </button>
+            )}
+            {!isGroup && (
+              <button
+                type="button"
+                className="rounded-full p-1 transition-colors hover:text-white"
+                aria-label="Video Call"
+              >
+                <Video className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              className="rounded-full p-1 transition-colors hover:text-white"
+              aria-label="Search"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              className="rounded-full p-1 transition-colors hover:text-white"
+              aria-label="More Options"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          data-testid="telegram-header"
+          className={cn('flex items-center justify-between px-3 py-2 transition-colors', headerBg)}
+        >
+          <button
+            type="button"
+            className="flex items-center gap-0.5 text-[14px] font-medium text-[#007AFF]"
+            aria-label="Back"
+          >
+            <ChevronLeft className="-ml-1 h-5 w-5 stroke-[2.3]" />
+            <span>Chats</span>
+          </button>
+
+          <div className="flex min-w-0 max-w-[56%] flex-col items-center text-center leading-tight">
+            <div className="flex items-center gap-1">
               <span
                 data-testid="telegram-title"
-                className="text-[15px] font-semibold tracking-tight text-white truncate"
+                className="truncate text-[15px] font-semibold tracking-tight"
               >
                 {headerTitle}
               </span>
               {otherParticipant?.verifiedBadge && otherParticipant.verifiedBadge !== 'none' && (
                 <span
                   title="Verified Account"
-                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-white text-[#3390EC] text-[9px] font-bold"
+                  className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#3390EC] text-[9px] font-bold text-white"
                 >
                   ✓
                 </span>
@@ -191,53 +289,19 @@ export function TelegramChatRenderer({
             <span
               data-testid="telegram-subtitle"
               className={cn(
-                'text-[12px] truncate',
+                'truncate text-[11px]',
                 headerSubtitle === 'online' || isTypingPreview
-                  ? 'text-[#87D4FF] font-medium'
-                  : 'text-white/75'
+                  ? 'font-medium text-[#007AFF]'
+                  : 'opacity-60'
               )}
             >
               {headerSubtitle}
             </span>
           </div>
-        </div>
 
-        {/* Header Actions */}
-        <div className="flex items-center gap-3 text-white/90">
-          {!isGroup && (
-            <button
-              type="button"
-              className="p-1 hover:text-white rounded-full transition-colors"
-              aria-label="Voice Call"
-            >
-              <Phone className="h-4 w-4" />
-            </button>
-          )}
-          {!isGroup && (
-            <button
-              type="button"
-              className="p-1 hover:text-white rounded-full transition-colors"
-              aria-label="Video Call"
-            >
-              <Video className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            className="p-1 hover:text-white rounded-full transition-colors"
-            aria-label="Search"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="p-1 hover:text-white rounded-full transition-colors"
-            aria-label="More Options"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">{avatarNode}</div>
         </div>
-      </div>
+      )}
 
       {/* 3. Telegram Pinned Message Bar */}
       {showPinnedBar && (

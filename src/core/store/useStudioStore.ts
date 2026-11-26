@@ -2,8 +2,11 @@
 
 import { create } from 'zustand';
 import type {
+  ChatListRow,
   Conversation,
   DeviceFramePreset,
+  DeviceType,
+  EditableElementSelection,
   ExportFormat,
   Message,
   MessageType,
@@ -12,6 +15,7 @@ import type {
   PostCarouselSlide,
   Project,
   ReadReceiptStatus,
+  ScreenViewMode,
   StoryElement,
   Template,
 } from '@/core/types';
@@ -47,8 +51,11 @@ export interface StudioStore {
 
   ui: {
     selectedMessageId: string | null;
+    selectedElement: EditableElementSelection | null;
     activeTab: 'messages' | 'participants' | 'appearance' | 'timeline';
     mobileDrawerOpen: boolean;
+    editorOpen: boolean;
+    previewZoom: number;
     isTimelineOpen: boolean;
     isPlayingTimeline: boolean;
     timelineVisibleCount: number;
@@ -62,8 +69,17 @@ export interface StudioStore {
   saveNow: () => Promise<void>;
   refreshSavedProjects: () => Promise<void>;
   duplicateCurrentProject: () => Promise<Project>;
+  renameSavedProject: (projectId: string, newTitle: string) => Promise<void>;
   restoreProjectById: (projectId: string) => Promise<void>;
   deleteSavedProject: (projectId: string) => Promise<void>;
+  setDeviceType: (device: DeviceType) => void;
+  setAppearance: (mode: 'light' | 'dark') => void;
+  setScreenViewMode: (mode: ScreenViewMode) => void;
+  upsertChatListRow: (row: ChatListRow) => void;
+  deleteChatListRow: (rowId: string) => void;
+  setSelectedElement: (el: EditableElementSelection | null) => void;
+  setPreviewZoom: (zoom: number) => void;
+  setEditorOpen: (open: boolean) => void;
   resetToSeed: () => void;
   clearAllMessages: () => void;
   loadProject: (project: Project) => void;
@@ -156,6 +172,8 @@ export interface StudioStore {
   setDeviceFrame: (frame: DeviceFramePreset) => void;
   setExportFormat: (format: ExportFormat) => void;
   setExportScale: (scale: 1 | 2 | 3) => void;
+  setExportQuality: (quality: number) => void;
+  setExportAspectRatio: (ratio: 'device' | '9:16' | '4:5' | '1:1') => void;
   setBackgroundMode: (mode: 'platform' | 'transparent' | 'solid') => void;
   setCustomDimensions: (enabled: boolean, widthPx?: number, heightPx?: number) => void;
   setSafetyBadge: (enabled: boolean) => void;
@@ -244,8 +262,11 @@ export const useStudioStore = create<StudioStore>((set, get) => {
 
     ui: {
       selectedMessageId: null,
+      selectedElement: null,
       activeTab: 'messages',
       mobileDrawerOpen: false,
+      editorOpen: true,
+      previewZoom: 1,
       isTimelineOpen: false,
       isPlayingTimeline: false,
       timelineVisibleCount: 999,
@@ -452,6 +473,144 @@ export const useStudioStore = create<StudioStore>((set, get) => {
       await deleteProjectFromIndexedDb(projectId);
       const allSaved = await listSavedProjects();
       set({ savedProjects: allSaved });
+    },
+
+    renameSavedProject: async (projectId, newTitle) => {
+      const trimmed = newTitle.trim();
+      if (!trimmed) return;
+      const allSaved = await listSavedProjects();
+      const target = allSaved.find((p) => p.id === projectId);
+      if (target) {
+        const updated = { ...target, title: trimmed, updatedAt: new Date().toISOString() };
+        await saveProjectToIndexedDb(updated);
+      }
+      const nextSaved = await listSavedProjects();
+      set((s) => ({
+        savedProjects: nextSaved,
+        project:
+          s.project.id === projectId
+            ? { ...s.project, title: trimmed, updatedAt: new Date().toISOString() }
+            : s.project,
+      }));
+    },
+
+    setDeviceType: (device) => {
+      commitMutation((prev) => {
+        const isIphone = device === 'iphone';
+        const nextOsVariant = isIphone ? 'ios' : 'android';
+        const nextUiVersion = isIphone ? 'ios_modern' : 'android_modern';
+        const nextNotch = isIphone ? 'dynamic_island' : 'punch_hole';
+        const nextFrame: DeviceFramePreset =
+          prev.exportSettings.deviceFrame === 'none'
+            ? 'none'
+            : isIphone
+              ? 'iphone_16_pro'
+              : 'pixel_9';
+
+        return {
+          ...prev,
+          updatedAt: new Date().toISOString(),
+          theme: {
+            ...prev.theme,
+            deviceType: device,
+            osVariant: nextOsVariant,
+            uiVersion: nextUiVersion,
+            statusBar: {
+              ...prev.theme.statusBar,
+              visible: true,
+              notchStyle: nextNotch,
+            },
+          },
+          exportSettings: {
+            ...prev.exportSettings,
+            deviceFrame: nextFrame,
+          },
+          conversations: prev.conversations.map((c) => {
+            if (c.id !== prev.activeConversationId) return c;
+            const nextCallMeta = c.callMeta
+              ? {
+                  ...c.callMeta,
+                  deviceMode: (isIphone ? 'ios' : 'android') as 'ios' | 'android',
+                  callPlatform:
+                    c.callMeta.callPlatform === 'ios-phone' ||
+                    c.callMeta.callPlatform === 'android-phone'
+                      ? ((isIphone ? 'ios-phone' : 'android-phone') as 'ios-phone' | 'android-phone')
+                      : c.callMeta.callPlatform,
+                  callStateLabel:
+                    c.callMeta.callPlatform === 'ios-phone' ||
+                    c.callMeta.callPlatform === 'android-phone'
+                      ? isIphone
+                        ? 'iPhone Call'
+                        : 'Android Phone Call'
+                      : c.callMeta.callStateLabel,
+                }
+              : undefined;
+            const nextDiscordLayout =
+              prev.platformId === 'discord-chat' &&
+              c.headerState.discordLayout === 'desktop_server'
+                ? ('mobile_chat' as const)
+                : c.headerState.discordLayout;
+            return {
+              ...c,
+              callMeta: nextCallMeta,
+              headerState: {
+                ...c.headerState,
+                discordLayout: nextDiscordLayout,
+                backButtonLabel: isIphone
+                  ? c.headerState.backButtonLabel || 'Messages'
+                  : undefined,
+              },
+            };
+          }),
+        };
+      });
+    },
+
+    setAppearance: (mode) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        theme: {
+          ...prev.theme,
+          colorScheme: mode,
+        },
+      }));
+    },
+
+    setScreenViewMode: (screenViewMode) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          headerState: {
+            ...conv.headerState,
+            screenViewMode,
+          },
+        }))
+      );
+    },
+
+    upsertChatListRow: (row) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => {
+          const list = conv.chatListItems ?? [];
+          const exists = list.some((r) => r.id === row.id);
+          return {
+            ...conv,
+            chatListItems: exists
+              ? list.map((r) => (r.id === row.id ? row : r))
+              : [row, ...list],
+          };
+        })
+      );
+    },
+
+    deleteChatListRow: (rowId) => {
+      commitMutation((prev) =>
+        updateActiveConversation(prev, (conv) => ({
+          ...conv,
+          chatListItems: (conv.chatListItems ?? []).filter((r) => r.id !== rowId),
+        }))
+      );
     },
 
     resetToSeed: () => {
@@ -1361,6 +1520,22 @@ export const useStudioStore = create<StudioStore>((set, get) => {
       }));
     },
 
+    setExportQuality: (quality) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        exportSettings: { ...prev.exportSettings, quality },
+      }));
+    },
+
+    setExportAspectRatio: (aspectRatioPreset) => {
+      commitMutation((prev) => ({
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        exportSettings: { ...prev.exportSettings, aspectRatioPreset },
+      }));
+    },
+
     setBackgroundMode: (backgroundMode) => {
       commitMutation((prev) => ({
         ...prev,
@@ -1575,6 +1750,40 @@ export const useStudioStore = create<StudioStore>((set, get) => {
 
     setSelectedMessageId: (id) =>
       set((s) => ({ ui: { ...s.ui, selectedMessageId: id } })),
+    setSelectedElement: (selectedElement) =>
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          selectedElement,
+          selectedMessageId:
+            selectedElement?.kind === 'message' && selectedElement.targetId
+              ? selectedElement.targetId
+              : s.ui.selectedMessageId,
+          activeTab:
+            selectedElement?.kind === 'avatar' || selectedElement?.kind === 'contact_name'
+              ? 'participants'
+              : selectedElement?.kind === 'wallpaper' || selectedElement?.kind === 'status_bar'
+                ? 'appearance'
+                : selectedElement?.kind === 'message' ||
+                    selectedElement?.kind === 'timestamp' ||
+                    selectedElement?.kind === 'attachment' ||
+                    selectedElement?.kind === 'chat_list_row'
+                  ? 'messages'
+                  : s.ui.activeTab,
+          editorOpen: selectedElement ? true : s.ui.editorOpen,
+          previewMode: selectedElement ? false : s.ui.previewMode,
+        },
+      })),
+    setPreviewZoom: (previewZoom) =>
+      set((s) => ({ ui: { ...s.ui, previewZoom } })),
+    setEditorOpen: (editorOpen) =>
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          editorOpen,
+          previewMode: !editorOpen,
+        },
+      })),
     setActiveTab: (activeTab) =>
       set((s) => ({ ui: { ...s.ui, activeTab } })),
     setMobileDrawerOpen: (mobileDrawerOpen) =>

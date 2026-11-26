@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { PlatformRendererProps } from '@/platforms/whatsapp-chat/Renderer';
 import { MessageActions } from '@/components/engine';
+import { StatusBar } from '@/components/shared-renderers/StatusBar';
 import { cn } from '@/lib/utils';
 import type { Participant } from '@/core/types';
 
@@ -162,6 +163,7 @@ export function DiscordChatRenderer({
   onDeleteMessage,
 }: PlatformRendererProps) {
   const dark = theme.colorScheme !== 'light';
+  const isAndroid = theme.deviceType === 'android' || theme.osVariant === 'android';
   const layout = conversation.headerState.discordLayout || 'desktop_server';
   const isMobile = layout === 'mobile_chat';
   const isDM = layout === 'direct_message';
@@ -355,15 +357,31 @@ export function DiscordChatRenderer({
       )}
 
       {/* 3. Main Chat View */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#313338]">
+      <div
+        className={cn(
+          'flex-1 flex flex-col min-w-0',
+          dark ? 'bg-[#313338] text-[#DBDEE1]' : 'bg-white text-slate-900'
+        )}
+      >
+        {(isMobile || isDM) && (
+          <StatusBar
+            statusBar={theme.statusBar}
+            osVariant={isAndroid ? 'android' : 'ios'}
+            darkBg={dark}
+            className={dark ? 'bg-[#2B2D31] text-white' : 'bg-slate-100 text-slate-900'}
+          />
+        )}
         {/* Channel Top Header */}
         <div
           data-testid="discord-channel-header"
-          className="h-12 border-b border-[#1F2023] px-4 flex items-center justify-between shrink-0 shadow-xs"
+          className={cn(
+            'h-12 border-b px-4 flex items-center justify-between shrink-0 shadow-xs',
+            dark ? 'border-[#1F2023] text-white' : 'border-slate-200 bg-white text-slate-900'
+          )}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
             {isDM ? (
-              <span className="font-bold text-white text-[15px] flex items-center gap-1.5">
+              <span className="font-bold text-[15px] flex items-center gap-1.5">
                 <span className="text-[#80848E]">@</span> {conversation.title || 'Direct Message'}
               </span>
             ) : (
@@ -371,7 +389,7 @@ export function DiscordChatRenderer({
                 <Hash className="h-6 w-6 text-[#80848E] shrink-0" />
                 <span
                   data-testid="discord-channel-name"
-                  className="font-bold text-white text-[15px] shrink-0"
+                  className="font-bold text-[15px] shrink-0"
                 >
                   {channelName}
                 </span>
@@ -747,16 +765,26 @@ export function DiscordChatRenderer({
           data-testid="discord-composer"
           className="px-4 pb-4 pt-1 shrink-0 select-none"
         >
-          <div className="h-11 rounded-lg bg-[#383A40] px-4 flex items-center justify-between text-[#B5BAC1]">
+          <div
+            className={cn(
+              'h-11 rounded-xl px-4 flex items-center justify-between',
+              dark ? 'bg-[#383A40] text-[#B5BAC1]' : 'bg-slate-100 text-slate-600'
+            )}
+          >
             <div className="flex items-center gap-3 flex-1 min-w-0 mr-2">
               <button
                 type="button"
-                className="w-6 h-6 rounded-full bg-[#4E5058] hover:bg-[#6D6F78] text-white flex items-center justify-center shrink-0 transition-colors"
+                className={cn(
+                  'w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors',
+                  dark
+                    ? 'bg-[#4E5058] hover:bg-[#6D6F78] text-white'
+                    : 'bg-slate-300 hover:bg-slate-400 text-slate-800'
+                )}
                 aria-label="Add Attachment"
               >
                 <Plus className="h-4 w-4" />
               </button>
-              <span className="text-[14px] text-[#949BA4] truncate">
+              <span className="text-[14px] opacity-75 truncate">
                 Message #{channelName}
               </span>
             </div>

@@ -3,20 +3,26 @@
 import React, { useState } from 'react';
 import {
   Bookmark,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clapperboard,
   Heart,
+  Home,
   MessageCircle,
   MoreHorizontal,
   Music2,
   Pin,
   Play,
+  Plus,
+  Search,
   Send,
   Tag,
   Volume2,
 } from 'lucide-react';
 import type { Conversation, Message, Participant, PlatformTheme } from '@/core/types';
 import { AvatarBadge, VerifiedIcon } from '@/components/shared-renderers/AvatarBadge';
+import { StatusBar } from '@/components/shared-renderers/StatusBar';
 import { useStudioStore } from '@/core/store/useStudioStore';
 import { cn } from '@/lib/utils';
 
@@ -125,14 +131,88 @@ export function InstagramPostRenderer({
         ? 'aspect-square'
         : 'aspect-[4/5]';
 
+  const isAndroid = theme.deviceType === 'android' || theme.osVariant === 'android';
+  const showHomeShell = conversation.headerState?.screenViewMode !== 'post';
+  const showStoriesStrip =
+    showHomeShell && (conversation.headerState?.showHomeFeedStories ?? true);
+  const selfUser = participantsById[conversation.selfParticipantId];
+  const otherContacts = Object.values(participantsById).filter(
+    (p) => p.id !== conversation.selfParticipantId
+  );
+
   return (
     <div
       data-testid="renderer-instagram-post"
       className={cn(
-        'flex flex-col w-full max-w-[480px] mx-auto select-none rounded-sm transition-colors duration-200 shadow-md',
-        dark ? 'bg-black text-white' : 'bg-white text-slate-900 border border-slate-100'
+        'relative flex w-full flex-col select-none transition-colors duration-200',
+        dark ? 'bg-black text-white' : 'bg-white text-slate-900'
       )}
     >
+      {showHomeShell && (
+        <>
+          <StatusBar
+            statusBar={theme.statusBar}
+            osVariant={isAndroid ? 'android' : 'ios'}
+            darkBg={dark}
+          />
+          {/* Top Instagram Home Header matching IMG_5414.PNG (+ left, Instagram ⌄ center, Heart right) */}
+          <div className="flex items-center justify-between px-4 py-2">
+            <Plus className="h-6 w-6 stroke-[2]" />
+            <div className="flex items-center gap-1">
+              <span
+                className="text-[22px] font-bold tracking-tight"
+                style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic' }}
+              >
+                Instagram
+              </span>
+              <ChevronDown className="h-4 w-4 opacity-80" />
+            </div>
+            <div className="relative">
+              <Heart className="h-6 w-6 stroke-[2]" />
+              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-rose-500" />
+            </div>
+          </div>
+
+          {/* Horizontal Stories Tray matching IMG_5414.PNG */}
+          {showStoriesStrip && (
+            <div
+              data-testid="instagram-stories-tray"
+              className="flex items-center gap-3 overflow-x-auto border-b border-current/10 px-3.5 pb-3 pt-1"
+            >
+              <div className="flex shrink-0 flex-col items-center gap-1">
+                <div className="relative">
+                  <AvatarBadge participant={selfUser ?? author} size="md" />
+                  <span
+                    className={cn(
+                      'absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 bg-white text-black',
+                      dark ? 'border-black' : 'border-white bg-slate-900 text-white'
+                    )}
+                  >
+                    <Plus className="h-3 w-3 stroke-[3]" />
+                  </span>
+                </div>
+                <span className="max-w-[64px] truncate text-[10px] opacity-75">
+                  Your story
+                </span>
+              </div>
+
+              {(otherContacts.length > 0 ? otherContacts : [author]).map((p) => (
+                <div key={p.id} className="flex shrink-0 flex-col items-center gap-1">
+                  <div className="rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[2.5px]">
+                    <div className={cn('rounded-full p-[2px]', dark ? 'bg-black' : 'bg-white')}>
+                      <AvatarBadge participant={p} size="md" />
+                    </div>
+                  </div>
+                  <span className="max-w-[66px] truncate text-[10px] opacity-85">
+                    {(p.handle || p.displayName).replace(/^@/, '')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       {/* 1. Post Header */}
       <div className="flex items-center justify-between px-3.5 py-3">
         <div className="flex items-center gap-3">
@@ -534,6 +614,48 @@ export function InstagramPostRenderer({
           </button>
         </div>
       </div>
+
+      {/* Bottom 5-Tab Navigation Bar: Home -> Reels -> DMs -> Search -> Profile */}
+      {showHomeShell &&
+        (isAndroid ? (
+          <nav
+            aria-label="Instagram Android navigation"
+            className={cn(
+              'mt-auto flex h-12 items-center justify-around border-t px-2',
+              dark ? 'border-white/10 bg-black text-white' : 'border-slate-200 bg-white text-slate-900'
+            )}
+          >
+            <Home className="h-5 w-5 fill-current" />
+            <Clapperboard className="h-5 w-5 opacity-75" />
+            <div className="relative">
+              <Send className="h-5 w-5 opacity-80" />
+              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
+            </div>
+            <Search className="h-5 w-5 opacity-75" />
+            <AvatarBadge participant={selfUser ?? author} size="xs" />
+          </nav>
+        ) : (
+          <div className="mt-auto px-3 pb-2 pt-1">
+            <nav
+              aria-label="Instagram iOS Liquid Glass navigation"
+              className={cn(
+                'flex h-12 items-center justify-around rounded-full border px-3 shadow-lg backdrop-blur-xl',
+                dark
+                  ? 'border-white/15 bg-[#1C1C1E]/85 text-white'
+                  : 'border-white/90 bg-white/85 text-slate-900'
+              )}
+            >
+              <Home className="h-5 w-5 fill-current" />
+              <Clapperboard className="h-5 w-5 opacity-80" />
+              <div className="relative">
+                <Send className="h-5 w-5 opacity-85" />
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
+              </div>
+              <Search className="h-5 w-5 opacity-80" />
+              <AvatarBadge participant={selfUser ?? author} size="xs" />
+            </nav>
+          </div>
+        ))}
     </div>
   );
 }

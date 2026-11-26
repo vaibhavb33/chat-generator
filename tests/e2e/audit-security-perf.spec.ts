@@ -80,7 +80,7 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
     });
 
     const t0 = Date.now();
-    await page.goto('/whatsapp-chat-generator', { waitUntil: 'networkidle' });
+    await page.goto('/whatsapp-chat-generator', { waitUntil: 'load' });
     const loadWallMs = Date.now() - t0;
 
     const metrics = await page.evaluate(() => {
@@ -98,7 +98,7 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
     expect(metrics.cls).toBeLessThan(0.05);
 
     // Measure actual client-side PNG, WebP, and Video export durations
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
     const expStart = Date.now();
     const dlPromise = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
@@ -114,20 +114,13 @@ test.describe('Prompt 07: Security Headers, Upload Validation, Accessibility & P
     const webpExportMs = Date.now() - webpStart;
     await page.getByRole('button', { name: 'Close', exact: true }).click();
 
-    let videoExportMs = -1;
-    // WebKit (headless Safari) lacks canvas.captureStream/MediaRecorder video export in headless macOS
-    const hasMediaRecorder = await page.evaluate(() => typeof window.MediaRecorder !== 'undefined');
-    if (hasMediaRecorder) {
-      await page.getByRole('button', { name: /Video/i }).click();
-      const vidStart = Date.now();
-      const vidDlPromise = page.waitForEvent('download');
-      await page.getByTestId('export-video-btn').click();
-      await vidDlPromise;
-      videoExportMs = Date.now() - vidStart;
-    }
+    await page.getByRole('button', { name: /Video/i }).click();
+    await page.getByTestId('export-video-btn').click();
+    await expect(page.getByTestId('premium-upgrade-modal')).toBeVisible();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
 
     console.log(
-      `[PERF:${testInfo.project.name}] wallLoad=${loadWallMs}ms ttfb=${metrics.ttfbMs}ms dcl=${metrics.domInteractiveMs}ms cls=${metrics.cls} pngExport=${pngExportMs}ms ${secondFormatBtn.toLowerCase()}Export=${webpExportMs}ms videoExport=${videoExportMs}ms`
+      `[PERF:${testInfo.project.name}] wallLoad=${loadWallMs}ms ttfb=${metrics.ttfbMs}ms dcl=${metrics.domInteractiveMs}ms cls=${metrics.cls} pngExport=${pngExportMs}ms ${secondFormatBtn.toLowerCase()}Export=${webpExportMs}ms`
     );
   });
 

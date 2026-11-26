@@ -105,7 +105,7 @@ test.describe('TASK 08 Acceptance: Android Messages Generator (/android-message-
     await expect(surface).toContainText('Sightglass Coffee Roastery');
 
     // 17. Verify Exports (PNG, JPG, WebP)
-    await page.getByTestId('top-export-button').click();
+    await page.getByTestId('footer-download-button').click();
 
     const pngDl = page.waitForEvent('download');
     await page.getByTestId('confirm-export-btn').click();
