@@ -36,7 +36,25 @@ export interface PricingPlanConfig {
   description: string;
   prices: Record<CurrencyCode, number>;
   highlights: string[];
+  entitlements: PremiumFeatureKey[];
 }
+
+export const ALL_PREMIUM_FEATURES: PremiumFeatureKey[] = [
+  'ai_conversation_generator',
+  'ai_writing_assistant',
+  'animated_playback',
+  'video_export',
+  'video_4k_export',
+  'video_60fps_export',
+  'advanced_animation_controls',
+  'carousel_export',
+  'batch_png_export',
+  'reusable_character_library',
+  'advanced_templates',
+  'advanced_rendering',
+  'cloud_project_management',
+  'premium_scene_templates',
+];
 
 export interface BillingSettingsConfig {
   currency: CurrencyCode;
@@ -78,6 +96,7 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
       'Local Save Chat & browser restore',
       'Full interactive preview editing',
     ],
+    entitlements: [],
   },
   {
     id: 'weekly',
@@ -92,6 +111,7 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
       'Batch PNG & Carousel ZIP exports',
       '1080p & browser-supported 4K/60 FPS',
     ],
+    entitlements: ALL_PREMIUM_FEATURES,
   },
   {
     id: 'monthly',
@@ -106,6 +126,7 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
       'Cloud project library & multi-device sync',
       'Premium studio scene backdrops & templates',
     ],
+    entitlements: ALL_PREMIUM_FEATURES,
   },
   {
     id: 'lifetime',
@@ -120,8 +141,23 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
       'Unlimited character presets & batch exports',
       'Priority rendering enhancements',
     ],
+    entitlements: ALL_PREMIUM_FEATURES,
   },
 ];
+
+export function resolveConfigurablePlans(): PricingPlanConfig[] {
+  const rawOverride = process.env.NEXT_PUBLIC_PRICING_PLANS_JSON;
+  if (!rawOverride) return PRICING_PLANS;
+  try {
+    const parsed = JSON.parse(rawOverride);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed as PricingPlanConfig[];
+    }
+  } catch {
+    // Fallback cleanly to default configurable plans
+  }
+  return PRICING_PLANS;
+}
 
 export const PREMIUM_FEATURE_CATALOG: Record<PremiumFeatureKey, PremiumFeatureDefinition> = {
   ai_conversation_generator: {

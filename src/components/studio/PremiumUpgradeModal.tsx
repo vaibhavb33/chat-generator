@@ -22,7 +22,6 @@ import {
   useBillingStore,
 } from '@/core/billing/entitlements';
 import {
-  PRICING_PLANS,
   formatPlanPrice,
   type CurrencyCode,
   type PlanTier,
@@ -32,6 +31,7 @@ import { cn } from '@/lib/utils';
 export function PremiumUpgradeModal() {
   const open = useBillingStore((s) => s.upgradeModalOpen);
   const featureKey = useBillingStore((s) => s.upgradeModalFeature) ?? 'video_export';
+  const plans = useBillingStore((s) => s.plans);
   const billingSettings = useBillingStore((s) => s.billingSettings);
   const providerNotice = useBillingStore((s) => s.providerNotice);
   const closeUpgradeModal = useBillingStore((s) => s.closeUpgradeModal);
@@ -129,7 +129,7 @@ export function PremiumUpgradeModal() {
 
           {/* Configurable Plan Selection (Weekly, Monthly, Lifetime) */}
           <div className="grid gap-2.5 sm:grid-cols-3">
-            {PRICING_PLANS.filter((p) => p.id !== 'free').map((plan) => {
+            {plans.filter((p) => p.id !== 'free').map((plan) => {
               const planId = plan.id as Exclude<PlanTier, 'free'>;
               const isSelected = selectedPlan === planId;
               return (
@@ -215,7 +215,7 @@ export function PremiumUpgradeModal() {
               >
                 <Lock className="h-3.5 w-3.5" />
                 Upgrade to{' '}
-                {PRICING_PLANS.find((p) => p.id === selectedPlan)?.name}
+                {plans.find((p) => p.id === selectedPlan)?.name}
               </Button>
             </div>
           </div>

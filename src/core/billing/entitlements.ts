@@ -4,16 +4,20 @@ import { create } from 'zustand';
 import {
   DEFAULT_BILLING_SETTINGS,
   PREMIUM_FEATURE_CATALOG,
+  PRICING_PLANS,
+  resolveConfigurablePlans,
   type BillingSettingsConfig,
   type CurrencyCode,
   type PlanTier,
   type PremiumFeatureKey,
+  type PricingPlanConfig,
 } from '@/core/billing/plansConfig';
 
 export const FREE_EXPORT_FORMATS = ['png', 'jpeg', 'webp'] as const;
 
 export interface EntitlementState {
   activePlan: PlanTier;
+  plans: PricingPlanConfig[];
   billingSettings: BillingSettingsConfig;
   upgradeModalFeature: PremiumFeatureKey | null;
   upgradeModalOpen: boolean;
@@ -23,28 +27,33 @@ export interface EntitlementState {
   openUpgradeModal: (feature: PremiumFeatureKey) => void;
   closeUpgradeModal: () => void;
   setCurrency: (currency: CurrencyCode) => void;
+  configurePlans: (plans: PricingPlanConfig[]) => void;
+  updateBillingSettings: (patch: Partial<BillingSettingsConfig>) => void;
   startProviderCheckout: (planId: Exclude<PlanTier, 'free'>) => void;
   clearProviderNotice: () => void;
 }
 
 export function isPlanEntitledToFeature(
   plan: PlanTier,
-  feature: PremiumFeatureKey
+  feature: PremiumFeatureKey,
+  plans: PricingPlanConfig[] = PRICING_PLANS
 ): boolean {
-  // All 14 listed premium capabilities require a verified non-free entitlement.
-  // Never bypass or simulate fake Pro unlocks client-side.
   if (!PREMIUM_FEATURE_CATALOG[feature]) return false;
-  return plan === 'weekly' || plan === 'monthly' || plan === 'lifetime';
+  const matched = plans.find((p) => p.id === plan);
+  if (!matched) return false;
+  return matched.entitlements.includes(feature);
 }
 
 export const useBillingStore = create<EntitlementState>((set, get) => ({
   activePlan: 'free',
+  plans: resolveConfigurablePlans(),
   billingSettings: DEFAULT_BILLING_SETTINGS,
   upgradeModalFeature: null,
   upgradeModalOpen: false,
   providerNotice: null,
 
-  hasFeatureAccess: (feature) => isPlanEntitledToFeature(get().activePlan, feature),
+  hasFeatureAccess: (feature) =>
+    isPlanEntitledToFeature(get().activePlan, feature, get().plans),
 
   openUpgradeModal: (feature) =>
     set({
@@ -67,11 +76,21 @@ export const useBillingStore = create<EntitlementState>((set, get) => ({
       },
     })),
 
+  configurePlans: (plans) => set({ plans }),
+
+  updateBillingSettings: (patch) =>
+    set((s) => ({
+      billingSettings: {
+        ...s.billingSettings,
+        ...patch,
+      },
+    })),
+
   startProviderCheckout: (planId) => {
     const { billingSettings } = get();
     const { paymentProvider } = billingSettings;
     if (!paymentProvider.isConfigured || !paymentProvider.checkoutBaseUrl) {
-      // Phase 6 strict rule: Never simulate successful payments when no billing provider is configured.
+      // Never simulate successful payments when no live billing provider is configured.
       set({
         providerNotice: `Live billing checkout (${planId.toUpperCase()} in ${billingSettings.currency}) requires a configured payment provider (Razorpay/Stripe). No test payment was simulated.`,
       });

@@ -364,8 +364,12 @@ export function ExportModal({
                     type="button"
                     data-testid="pro-carousel-export-btn"
                     onClick={() => {
-                      onOpenChange(false);
-                      openUpgradeModal('carousel_export');
+                      if (!hasFeatureAccess('carousel_export')) {
+                        onOpenChange(false);
+                        openUpgradeModal('carousel_export');
+                        return;
+                      }
+                      void handleRunExport();
                     }}
                     className="flex items-center justify-between rounded-xl border border-amber-200/80 bg-amber-50/50 px-3 py-2 text-[11px] font-semibold text-amber-900 hover:bg-amber-100/70 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 cursor-pointer"
                   >
@@ -373,14 +377,20 @@ export function ExportModal({
                       <Layers className="h-3.5 w-3.5" />
                       Carousel Set
                     </span>
-                    <Lock className="h-3 w-3 opacity-70" />
+                    {!hasFeatureAccess('carousel_export') && (
+                      <Lock className="h-3 w-3 opacity-70" />
+                    )}
                   </button>
                   <button
                     type="button"
                     data-testid="pro-batch-export-btn"
                     onClick={() => {
-                      onOpenChange(false);
-                      openUpgradeModal('batch_png_export');
+                      if (!hasFeatureAccess('batch_png_export')) {
+                        onOpenChange(false);
+                        openUpgradeModal('batch_png_export');
+                        return;
+                      }
+                      void handleRunExport();
                     }}
                     className="flex items-center justify-between rounded-xl border border-amber-200/80 bg-amber-50/50 px-3 py-2 text-[11px] font-semibold text-amber-900 hover:bg-amber-100/70 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 cursor-pointer"
                   >
@@ -388,7 +398,9 @@ export function ExportModal({
                       <Download className="h-3.5 w-3.5" />
                       Batch PNG ZIP
                     </span>
-                    <Lock className="h-3 w-3 opacity-70" />
+                    {!hasFeatureAccess('batch_png_export') && (
+                      <Lock className="h-3 w-3 opacity-70" />
+                    )}
                   </button>
                 </div>
               </>
@@ -783,6 +795,7 @@ export function ProjectsModal({
   const deleteSavedProject = useStudioStore((s) => s.deleteSavedProject);
 
   const openUpgradeModal = useBillingStore((s) => s.openUpgradeModal);
+  const hasFeatureAccess = useBillingStore((s) => s.hasFeatureAccess);
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
@@ -832,9 +845,12 @@ export function ProjectsModal({
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
+            data-testid="pro-cloud-sync-btn"
             onClick={() => {
-              onOpenChange(false);
-              openUpgradeModal('cloud_project_management');
+              if (!hasFeatureAccess('cloud_project_management')) {
+                onOpenChange(false);
+                openUpgradeModal('cloud_project_management');
+              }
             }}
             className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
           >
@@ -842,13 +858,22 @@ export function ProjectsModal({
               <Cloud className="h-3.5 w-3.5 text-indigo-500" />
               Cloud Sync Library
             </span>
-            <Crown className="h-3 w-3 text-amber-500" />
+            {hasFeatureAccess('cloud_project_management') ? (
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
+                PRO
+              </span>
+            ) : (
+              <Crown className="h-3 w-3 text-amber-500" />
+            )}
           </button>
           <button
             type="button"
+            data-testid="pro-character-lib-btn"
             onClick={() => {
-              onOpenChange(false);
-              openUpgradeModal('reusable_character_library');
+              if (!hasFeatureAccess('reusable_character_library')) {
+                onOpenChange(false);
+                openUpgradeModal('reusable_character_library');
+              }
             }}
             className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
           >
@@ -856,7 +881,13 @@ export function ProjectsModal({
               <Users className="h-3.5 w-3.5 text-indigo-500" />
               Character Library
             </span>
-            <Crown className="h-3 w-3 text-amber-500" />
+            {hasFeatureAccess('reusable_character_library') ? (
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
+                PRO
+              </span>
+            ) : (
+              <Crown className="h-3 w-3 text-amber-500" />
+            )}
           </button>
         </div>
 
