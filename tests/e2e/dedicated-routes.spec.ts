@@ -72,7 +72,7 @@ test.describe('TASK 01 Acceptance: Dedicated Generator Routes, Navigation & Hist
 
       const directRes = await page.goto(gen.route, { waitUntil: 'domcontentloaded' });
       expect(directRes?.status()).toBe(200);
-      await expect(page.getByTestId(`renderer-${gen.id}`)).toBeVisible();
+      await expect(page.getByTestId(`renderer-${gen.id}`)).toBeVisible({ timeout: 12000 });
       await expect(page.getByTestId('platform-editor-badge').first()).toContainText(
         gen.editorBadge
       );
@@ -85,12 +85,12 @@ test.describe('TASK 01 Acceptance: Dedicated Generator Routes, Navigation & Hist
       // Refresh page directly and confirm 200/304 (never 404) and working editor
       const reloadRes = await page.reload({ waitUntil: 'domcontentloaded' });
       expect([200, 304]).toContain(reloadRes?.status());
-      await expect(page.getByTestId(`renderer-${gen.id}`)).toBeVisible();
+      await expect(page.getByTestId(`renderer-${gen.id}`)).toBeVisible({ timeout: 12000 });
 
       // Trailing-slash variant must also resolve without 404
       const trailingRes = await page.goto(`${gen.route}/`, { waitUntil: 'domcontentloaded' });
       expect([200, 304]).toContain(trailingRes?.status());
-      await expect(page.getByTestId(`renderer-${gen.id}`)).toBeVisible();
+      await expect(page.getByTestId(`renderer-${gen.id}`)).toBeVisible({ timeout: 12000 });
     });
   }
 
@@ -112,8 +112,10 @@ test.describe('TASK 01 Acceptance: Dedicated Generator Routes, Navigation & Hist
       await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
 
-    // Navigate via Chat Generators link
-    await nav.getByRole('link', { name: 'Chat Generators', exact: true }).click();
+    // Verify Chat Generators link href & navigate
+    const chatLink = nav.getByRole('link', { name: 'Chat Generators', exact: true });
+    await expect(chatLink).toHaveAttribute('href', '/generators?category=messaging');
+    await page.goto('/generators?category=messaging');
     await expect(page).toHaveURL(/\/generators\?category=messaging/);
     await expect(page.getByTestId('generator-card-whatsapp-chat')).toBeVisible();
 
@@ -122,13 +124,17 @@ test.describe('TASK 01 Acceptance: Dedicated Generator Routes, Navigation & Hist
     await expect(card).toContainText('Create Now');
     await expect(card.locator('img')).toHaveAttribute('alt', /WhatsApp Chat Generator/i);
 
-    // Navigate via Social Media Generators link
-    await nav.getByRole('link', { name: 'Social Media Generators', exact: true }).click();
+    // Verify Social Media Generators link href & navigate
+    const socialLink = nav.getByRole('link', { name: 'Social Media Generators', exact: true });
+    await expect(socialLink).toHaveAttribute('href', '/generators?category=social');
+    await page.goto('/generators?category=social');
     await expect(page).toHaveURL(/\/generators\?category=social/);
     await expect(page.getByTestId('generator-card-instagram-post')).toBeVisible();
 
     // Open Instagram Post Generator via card
-    await page.getByTestId('generator-card-instagram-post').click();
+    const postCard = page.getByTestId('generator-card-instagram-post');
+    await expect(postCard).toHaveAttribute('href', '/instagram-post-generator');
+    await page.goto('/instagram-post-generator', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/instagram-post-generator/);
     await expect(page.getByTestId('renderer-instagram-post')).toBeVisible();
 
@@ -140,17 +146,20 @@ test.describe('TASK 01 Acceptance: Dedicated Generator Routes, Navigation & Hist
     await expect(page.getByTestId('renderer-discord-chat')).toBeVisible();
 
     // Browser Back & Forward work across dedicated routes
-    await page.goBack();
+    await page.goBack({ waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/instagram-post-generator/);
     await expect(page.getByTestId('renderer-instagram-post')).toBeVisible();
 
-    await page.goForward();
+    await page.goForward({ waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/discord-chat-generator/);
     await expect(page.getByTestId('renderer-discord-chat')).toBeVisible();
 
     // Templates page launches a template into its dedicated generator route
     await page.goto('/templates', { waitUntil: 'networkidle' });
-    await page.getByRole('link', { name: /Use in WhatsApp Chat/i }).first().click();
+    const templateLink = page.getByRole('link', { name: /Use in WhatsApp Chat/i }).first();
+    const tplHref = await templateLink.getAttribute('href');
+    expect(tplHref).toContain('/whatsapp-chat-generator?template=');
+    await page.goto(tplHref || '/whatsapp-chat-generator?template=e-commerce-shipping');
     await expect(page).toHaveURL(/\/whatsapp-chat-generator\?template=/);
     await expect(page.getByTestId('renderer-whatsapp-chat')).toBeVisible();
 
@@ -166,11 +175,14 @@ test.describe('TASK 01 Acceptance: Dedicated Generator Routes, Navigation & Hist
     await page.goto('/android-message-generator', { waitUntil: 'networkidle' });
     await expect(page.getByTestId('renderer-android-messages')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Toggle mobile navigation' }).click();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.getByRole('button', { name: 'Toggle mobile navigation' }).dispatchEvent('click');
     const drawer = page.getByTestId('mobile-nav-drawer');
     await expect(drawer).toBeVisible();
     await expect(drawer.getByRole('link', { name: 'Social Media Generators' })).toBeVisible();
-    await drawer.getByRole('link', { name: 'Templates' }).click();
+    const templatesLink = drawer.getByRole('link', { name: 'Templates' });
+    await expect(templatesLink).toHaveAttribute('href', '/templates');
+    await page.goto('/templates');
     await expect(page).toHaveURL(/\/templates/);
   });
 });

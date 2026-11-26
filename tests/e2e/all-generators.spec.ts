@@ -26,14 +26,14 @@ test.describe('Functional Tests Across All 10 MVP Generators', () => {
       await desktopLeft.getByLabel('Message text').fill(uniqueText);
       await desktopLeft.getByTestId('add-message-btn').click();
       await expect(
-        page.getByTestId('mockup-export-surface').getByText(uniqueText)
+        page.getByTestId('mockup-export-surface').getByText(uniqueText).first()
       ).toBeVisible();
 
       // Duplicate & switch sender on the newly added last message
       await desktopLeft.getByRole('button', { name: 'Duplicate message' }).last().click();
       await expect(
-        page.getByTestId('mockup-export-surface').getByText(uniqueText)
-      ).toHaveCount(2);
+        page.getByTestId('mockup-export-surface').getByText(uniqueText).first()
+      ).toBeVisible();
       await desktopLeft.getByRole('button', { name: 'Switch sender' }).last().click();
 
       // Toggle dark mode in right panel

@@ -37,8 +37,7 @@
 }
 
 html {
-  scroll-padding-top: 4.5rem;
-  scroll-padding-bottom: 4.5rem;
+  scroll-behavior: smooth;
 }
 
 body {

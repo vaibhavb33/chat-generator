@@ -598,6 +598,7 @@ export function DiscordEditor({
                 </label>
               </div>
               <Textarea
+                aria-label="Message text"
                 rows={3}
                 value={composerText}
                 onChange={(e) => setComposerText(e.target.value)}
@@ -760,6 +761,7 @@ export function DiscordEditor({
 
             <Button
               type="submit"
+              data-testid="add-message-btn"
               size="sm"
               className="w-full h-8 bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-semibold"
             >
@@ -854,6 +856,7 @@ export function DiscordEditor({
                           className="h-7 w-7 text-muted-foreground hover:text-foreground"
                           onClick={() => switchMessageSender(m.id)}
                           title="Switch Sender"
+                          aria-label="Switch sender"
                         >
                           <ArrowLeftRight className="h-3.5 w-3.5" />
                         </Button>
@@ -865,6 +868,7 @@ export function DiscordEditor({
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         onClick={() => duplicateMessage(m.id)}
                         title="Duplicate"
+                        aria-label="Duplicate message"
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </Button>

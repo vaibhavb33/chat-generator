@@ -25,7 +25,7 @@ test.describe('Responsive Layout Verification Across 6 Breakpoints', () => {
 test.describe('Homepage, Directory & Mobile Navigation', () => {
   test('mobile navigation drawer opens cleanly at 360px', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 780 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'Toggle mobile navigation' }).click();
     await expect(page.getByTestId('mobile-nav-drawer')).toBeVisible();
   });
@@ -49,7 +49,7 @@ test.describe('Studio Workspace Core Flows, States & PNG Export', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/whatsapp-chat-generator');
+    await page.goto('/whatsapp-chat-generator', { waitUntil: 'networkidle' });
 
     // Wait for hydration skeleton to finish
     await expect(page.getByTestId('mockup-export-surface')).toBeVisible();

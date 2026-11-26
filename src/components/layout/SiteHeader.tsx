@@ -47,7 +47,7 @@ function DesktopNavLinks({
   currentCategory: string | null;
 }) {
   return (
-    <nav aria-label="Primary navigation" className="hidden lg:flex items-center gap-0.5 xl:gap-1">
+    <nav aria-label="Primary navigation" className="hidden lg:flex items-center gap-0.5 xl:gap-1 relative z-10">
       {NAV_LINKS.map((item) => {
         const isActive = isNavItemActive(item.href, pathname, currentCategory);
         return (
@@ -88,7 +88,7 @@ export function SiteHeader({
   return (
     <header
       className={cn(
-        'z-40 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/90',
+        'isolate z-40 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/90',
         sticky ? 'sticky top-0' : 'relative'
       )}
     >
@@ -116,7 +116,7 @@ export function SiteHeader({
           </Suspense>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 relative z-10">
           <Button
             type="button"
             variant="ghost"
@@ -157,7 +157,7 @@ export function SiteHeader({
       {mobileMenuOpen && (
         <div
           data-testid="mobile-nav-drawer"
-          className="border-t border-slate-200 bg-white px-4 py-4 shadow-lg lg:hidden dark:border-slate-800 dark:bg-slate-950"
+          className="relative z-50 border-t border-slate-200 bg-white px-4 py-4 shadow-lg lg:hidden dark:border-slate-800 dark:bg-slate-950"
         >
           <nav aria-label="Mobile navigation" className="flex flex-col gap-1.5">
             {NAV_LINKS.map((item) => (

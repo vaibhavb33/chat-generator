@@ -719,6 +719,7 @@ export function TelegramEditor({
                       : 'Message Text'}
               </label>
               <Textarea
+                aria-label="Message text"
                 rows={2}
                 value={composerText}
                 onChange={(e) => setComposerText(e.target.value)}
@@ -895,6 +896,7 @@ export function TelegramEditor({
 
             <Button
               type="submit"
+              data-testid="add-message-btn"
               size="sm"
               className="w-full h-8 bg-[#3390EC] hover:bg-[#2AABEE] text-white text-xs font-semibold"
             >
@@ -1007,6 +1009,7 @@ export function TelegramEditor({
                           className="h-7 w-7 text-muted-foreground hover:text-foreground"
                           onClick={() => switchMessageSender(m.id)}
                           title="Switch Sender"
+                          aria-label="Switch sender"
                         >
                           <ArrowLeftRight className="h-3.5 w-3.5" />
                         </Button>
@@ -1018,6 +1021,7 @@ export function TelegramEditor({
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         onClick={() => duplicateMessage(m.id)}
                         title="Duplicate"
+                        aria-label="Duplicate message"
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </Button>
