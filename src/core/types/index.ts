@@ -132,6 +132,21 @@ export interface Attachment {
     previewDataUrl?: string;
     description?: string;
   };
+  discordEmbedMeta?: {
+    title: string;
+    description: string;
+    authorName?: string;
+    authorAvatarUrl?: string;
+    colorHex?: string;
+    fields?: Array<{ name: string; value: string; inline?: boolean }>;
+    footerText?: string;
+    thumbnailUrl?: string;
+    bannerUrl?: string;
+  };
+  codeBlockMeta?: {
+    language: string;
+    code: string;
+  };
 }
 
 export interface Participant {
@@ -148,6 +163,8 @@ export interface Participant {
   isSelfDefault?: boolean;
   isAdmin?: boolean;
   isGroupCreator?: boolean;
+  statusIndicator?: 'online' | 'idle' | 'dnd' | 'offline';
+  customStatus?: string;
 }
 
 export interface Message {
@@ -298,6 +315,15 @@ export interface Conversation {
     pinnedBarTitle?: string;
     telegramTheme?: 'classic_blue' | 'dark' | 'night' | 'day';
     telegramMembersCountLabel?: string;
+    discordLayout?: 'desktop_server' | 'desktop_compact' | 'mobile_chat' | 'direct_message';
+    serverName?: string;
+    serverIconDataUrl?: string;
+    channelTopic?: string;
+    channelIcon?: 'hash' | 'announcement' | 'lock' | 'voice';
+    showMemberList?: boolean;
+    showServerSidebar?: boolean;
+    showChannelSidebar?: boolean;
+    onlineCountLabel?: string;
   };
   storyMeta?: {
     slides: StorySlide[];

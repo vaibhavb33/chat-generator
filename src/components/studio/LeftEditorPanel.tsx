@@ -27,6 +27,7 @@ import { InstagramPostEditor } from '@/components/studio/InstagramPostEditor';
 import { ImessageEditor } from '@/components/studio/ImessageEditor';
 import { AndroidMessagesEditor } from '@/components/studio/AndroidMessagesEditor';
 import { TelegramEditor } from '@/components/studio/TelegramEditor';
+import { DiscordEditor } from '@/components/studio/DiscordEditor';
 import type { MessageType, ReadReceiptStatus, VerificationBadgeType } from '@/core/types';
 import { cn } from '@/lib/utils';
 
@@ -136,6 +137,15 @@ export function LeftEditorPanel({
   if (project.platformId === 'telegram-chat') {
     return (
       <TelegramEditor
+        onOpenScriptImport={onOpenScriptImport}
+        onRequestClearAll={onRequestClearAll}
+      />
+    );
+  }
+
+  if (project.platformId === 'discord-chat') {
+    return (
+      <DiscordEditor
         onOpenScriptImport={onOpenScriptImport}
         onRequestClearAll={onRequestClearAll}
       />

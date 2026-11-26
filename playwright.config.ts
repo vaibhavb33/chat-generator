@@ -42,6 +42,7 @@ export default defineConfig({
         '**/imessage.spec.ts',
         '**/android-messages.spec.ts',
         '**/telegram-chat.spec.ts',
+        '**/discord-chat.spec.ts',
       ],
       use: {
         ...devices['Desktop Firefox'],
@@ -61,6 +62,7 @@ export default defineConfig({
         '**/imessage.spec.ts',
         '**/android-messages.spec.ts',
         '**/telegram-chat.spec.ts',
+        '**/discord-chat.spec.ts',
       ],
       use: {
         ...devices['Desktop Safari'],

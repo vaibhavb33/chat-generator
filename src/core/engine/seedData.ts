@@ -159,6 +159,17 @@ export function createSeedProject(platformId: string): Project {
       telegramProfile: manifest.id === 'telegram-chat' ? 'telegram_modern' : undefined,
       telegramMembersCountLabel:
         manifest.id === 'telegram-chat' ? '1,420 members, 84 online' : undefined,
+      discordLayout: manifest.id === 'discord-chat' ? 'desktop_server' : undefined,
+      serverName: manifest.id === 'discord-chat' ? 'ChatForge Community' : undefined,
+      channelTopic:
+        manifest.id === 'discord-chat'
+          ? 'Official discussion, release updates & community roadmap'
+          : undefined,
+      channelIcon: manifest.id === 'discord-chat' ? 'hash' : undefined,
+      showMemberList: manifest.id === 'discord-chat' ? true : undefined,
+      showServerSidebar: manifest.id === 'discord-chat' ? true : undefined,
+      showChannelSidebar: manifest.id === 'discord-chat' ? true : undefined,
+      onlineCountLabel: manifest.id === 'discord-chat' ? '48 Online' : undefined,
     },
     storyMeta:
       manifest.capabilities.archetype === 'ephemeral_story'
@@ -747,7 +758,84 @@ function buildSeedMessages(
     ];
   }
 
-  if (platformId === 'whatsapp-group-chat' || platformId === 'discord-chat') {
+  if (platformId === 'discord-chat') {
+    return [
+      {
+        id: 'msg_dc_welcome',
+        senderId: 'system',
+        type: 'system',
+        text: 'A wild @daniel.agency appeared. Welcome to ChatForge Community!',
+        timestampLabel: 'Today at 10:00 AM',
+        attachments: [],
+        reactions: [{ emoji: '👋', participantIds: [otherId, selfId], count: 2 }],
+        readReceipt: { status: 'none' },
+      },
+      {
+        id: 'msg_dc_1',
+        senderId: otherId,
+        type: 'text',
+        text: 'Hey @everyone! The new v2.5 release candidate is live on staging 🚀',
+        timestampLabel: 'Today at 10:02 AM',
+        attachments: [
+          {
+            id: 'att_dc_embed_1',
+            kind: 'link_preview',
+            discordEmbedMeta: {
+              title: 'ChatForge Studio v2.5 Release Notes',
+              description:
+                'Introducing dedicated Discord, Telegram, and Android generator studios with authentic desktop & mobile layouts.',
+              authorName: 'ChatForge Engineering',
+              colorHex: '#5865F2',
+              fields: [
+                { name: 'Zero Watermarks', value: '100% Free HD Exports', inline: true },
+                { name: 'Client-Side', value: 'No Cloud Uploads', inline: true },
+              ],
+              footerText: 'ChatForge Bot • Today at 10:02 AM',
+            },
+          },
+        ],
+        reactions: [
+          { emoji: '🚀', participantIds: [selfId, thirdId], count: 12 },
+          { emoji: '🔥', participantIds: [fourthId], count: 8 },
+        ],
+        readReceipt: { status: 'none' },
+      },
+      {
+        id: 'msg_dc_2',
+        senderId: selfId,
+        type: 'text',
+        text: 'Just pulled the repo and tested the local build command:\n```bash\nnpm install && npm run build\n```\nAll 36 dedicated route suites passed cleanly! 🎯',
+        timestampLabel: 'Today at 10:05 AM',
+        replyToMessageId: 'msg_dc_1',
+        attachments: [],
+        reactions: [{ emoji: '🎉', participantIds: [otherId], count: 5 }],
+        readReceipt: { status: 'none' },
+      },
+      {
+        id: 'msg_dc_3',
+        senderId: thirdId,
+        type: 'text',
+        text: 'The responsive mobile layout at 390px and desktop member list look pixel-perfect ✨',
+        timestampLabel: 'Today at 10:08 AM',
+        isEdited: true,
+        attachments: [],
+        reactions: [{ emoji: '❤️', participantIds: [selfId], count: 4 }],
+        readReceipt: { status: 'none' },
+      },
+      {
+        id: 'msg_dc_4',
+        senderId: fourthId,
+        type: 'text',
+        text: 'All Docker containers and staging preview servers are green across all regions ✅',
+        timestampLabel: 'Today at 10:10 AM',
+        attachments: [],
+        reactions: [{ emoji: '✅', participantIds: [otherId], count: 7 }],
+        readReceipt: { status: 'none' },
+      },
+    ];
+  }
+
+  if (platformId === 'whatsapp-group-chat') {
     return [
       {
         id: 'msg_g_date',
