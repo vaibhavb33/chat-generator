@@ -24,6 +24,7 @@ import { WhatsAppGroupEditor } from '@/components/studio/WhatsAppGroupEditor';
 import { InstagramDmEditor } from '@/components/studio/InstagramDmEditor';
 import { InstagramStoryEditor } from '@/components/studio/InstagramStoryEditor';
 import { InstagramPostEditor } from '@/components/studio/InstagramPostEditor';
+import { ImessageEditor } from '@/components/studio/ImessageEditor';
 import type { MessageType, ReadReceiptStatus, VerificationBadgeType } from '@/core/types';
 import { cn } from '@/lib/utils';
 
@@ -106,6 +107,15 @@ export function LeftEditorPanel({
   if (project.platformId === 'instagram-post') {
     return (
       <InstagramPostEditor
+        onOpenScriptImport={onOpenScriptImport}
+        onRequestClearAll={onRequestClearAll}
+      />
+    );
+  }
+
+  if (project.platformId === 'imessage') {
+    return (
+      <ImessageEditor
         onOpenScriptImport={onOpenScriptImport}
         onRequestClearAll={onRequestClearAll}
       />

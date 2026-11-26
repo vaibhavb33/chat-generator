@@ -512,6 +512,74 @@ function buildSeedMessages(
     ];
   }
 
+  if (platformId === 'imessage') {
+    return [
+      {
+        id: 'msg_im_date',
+        senderId: 'system',
+        type: 'date_separator',
+        text: 'Today 9:41 AM',
+        timestampLabel: '',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'none' },
+      },
+      {
+        id: 'msg_im_1',
+        senderId: otherId,
+        type: 'text',
+        text: 'Hey! Did you check out the new iOS 18 design drop?',
+        timestampLabel: '9:38 AM',
+        attachments: [],
+        reactions: [{ emoji: '❤️', participantIds: [selfId], count: 1 }],
+        readReceipt: { status: 'read' },
+      },
+      {
+        id: 'msg_im_2',
+        senderId: selfId,
+        type: 'text',
+        text: 'Yeah, the iMessage Tapbacks and effects look incredible 🚀',
+        timestampLabel: '9:39 AM',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'read', readAtLabel: '9:39 AM' },
+      },
+      {
+        id: 'msg_im_3',
+        senderId: otherId,
+        type: 'voice_note',
+        text: 'Voice note preview',
+        timestampLabel: '9:40 AM',
+        attachments: [
+          {
+            id: 'att_vn_im',
+            kind: 'voice_note',
+            durationSeconds: 14,
+            voiceNoteMeta: {
+              waveformPeaks: [0.2, 0.5, 0.8, 0.4, 0.9, 0.7, 0.3, 0.6, 0.95, 0.5, 0.3, 0.7, 0.85, 0.4],
+              playbackSpeed: '1x',
+              isListened: false,
+            },
+          },
+        ],
+        reactions: [],
+        readReceipt: { status: 'read' },
+      },
+      {
+        id: 'msg_im_4',
+        senderId: selfId,
+        type: 'text',
+        text: 'Meeting at Apple Park at noon! See you there 🎉',
+        timestampLabel: '9:42 AM',
+        replyToMessageId: 'msg_im_1',
+        messageEffect: 'confetti',
+        attachments: [],
+        reactions: [{ emoji: '‼️', participantIds: [otherId], count: 1 }],
+        readReceipt: { status: 'delivered' },
+      },
+    ];
+  }
+
   if (platformId === 'whatsapp-group-chat' || platformId === 'discord-chat') {
     return [
       {

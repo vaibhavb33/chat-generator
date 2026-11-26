@@ -87,9 +87,15 @@ export interface StudioStore {
     storyAuthorHandle?: string;
     docFileName?: string;
     locationPlace?: string;
+    locationAddress?: string;
     contactName?: string;
+    contactPhone?: string;
     isPinned?: boolean;
     commentLikes?: number;
+    messageEffect?: Message['messageEffect'];
+    linkUrl?: string;
+    linkTitle?: string;
+    linkDomain?: string;
     reactions?: Message['reactions'];
   }) => void;
   updateMessage: (messageId: string, patch: Partial<Message>) => void;
@@ -570,7 +576,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
             latitude: 37.7749,
             longitude: -122.4194,
             placeName: input.locationPlace || input.text || 'Market Street Studio',
-            address: 'San Francisco, CA',
+            address: input.locationAddress || 'San Francisco, CA',
             isLiveLocation: true,
           },
         });
@@ -580,7 +586,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
           kind: 'contact_card',
           contactCardMeta: {
             fullName: input.contactName || input.text || 'Maya Lin',
-            phoneOrHandle: '+1 (415) 555-0194',
+            phoneOrHandle: input.contactPhone || '+1 (415) 555-0194',
           },
         });
       } else if (msgType === 'story_reply') {
@@ -600,6 +606,18 @@ export const useStudioStore = create<StudioStore>((set, get) => {
             authorHandle: input.storyAuthorHandle || '@creator.studio',
             captionSnippet: input.text || 'Check out this new mockup reel!',
             isReel: true,
+          },
+        });
+      } else if (msgType === 'link_preview' || input.linkUrl) {
+        attachments.push({
+          id: `att_${id}`,
+          kind: 'link_preview',
+          linkPreviewMeta: {
+            url: input.linkUrl || `https://${input.linkDomain || 'apple.com'}`,
+            title: input.linkTitle || input.text || 'Apple Special Event',
+            domain: input.linkDomain || 'apple.com',
+            previewDataUrl: input.imageDataUrl,
+            description: input.text || 'Explore the innovative world of Apple.',
           },
         });
       }
@@ -626,6 +644,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
         reactions: input.reactions ?? [],
         isPinned: input.isPinned,
         commentLikes: input.commentLikes,
+        messageEffect: input.messageEffect,
         readReceipt: { status: input.readStatus ?? 'read' },
         callEvent:
           msgType === 'call_event'

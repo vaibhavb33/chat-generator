@@ -39,6 +39,7 @@ export default defineConfig({
         '**/instagram-dm.spec.ts',
         '**/instagram-story.spec.ts',
         '**/instagram-post.spec.ts',
+        '**/imessage.spec.ts',
       ],
       use: {
         ...devices['Desktop Firefox'],
@@ -55,6 +56,7 @@ export default defineConfig({
         '**/instagram-dm.spec.ts',
         '**/instagram-story.spec.ts',
         '**/instagram-post.spec.ts',
+        '**/imessage.spec.ts',
       ],
       use: {
         ...devices['Desktop Safari'],

@@ -29,7 +29,8 @@ export type MessageType =
   | 'system'
   | 'date_separator'
   | 'unread_divider'
-  | 'poll';
+  | 'poll'
+  | 'link_preview';
 
 export type AttachmentKind =
   | 'image'
@@ -42,7 +43,8 @@ export type AttachmentKind =
   | 'location'
   | 'contact_card'
   | 'story_reply'
-  | 'shared_post';
+  | 'shared_post'
+  | 'link_preview';
 
 export type ReadReceiptStatus =
   | 'none'
@@ -123,6 +125,13 @@ export interface Attachment {
     captionSnippet: string;
     isReel?: boolean;
   };
+  linkPreviewMeta?: {
+    url: string;
+    title: string;
+    domain: string;
+    previewDataUrl?: string;
+    description?: string;
+  };
 }
 
 export interface Participant {
@@ -154,6 +163,16 @@ export interface Message {
   isStarred?: boolean;
   isPinned?: boolean;
   commentLikes?: number;
+  messageEffect?:
+    | 'none'
+    | 'invisible_ink'
+    | 'gentle'
+    | 'loud'
+    | 'slam'
+    | 'echo'
+    | 'confetti'
+    | 'lasers'
+    | 'balloons';
   attachments: Attachment[];
   reactions: Reaction[];
   readReceipt: ReadReceipt;
@@ -266,6 +285,9 @@ export interface Conversation {
     isEncryptedNoticeVisible?: boolean;
     isVanishMode?: boolean;
     channelName?: string;
+    backButtonLabel?: string;
+    serviceSubtitle?: string;
+    showFaceTimeAction?: boolean;
   };
   storyMeta?: {
     slides: StorySlide[];
