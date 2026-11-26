@@ -33,7 +33,7 @@ export function StudioFooterBar({
     <footer
       data-testid="studio-sticky-footer"
       aria-label="Primary studio actions"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/90 bg-white/95 px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95"
+      className="sticky bottom-0 z-30 mt-auto shrink-0 border-t border-slate-200/90 bg-white/95 px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95"
     >
       {/* Post-save status confirmation banner (only shown AFTER IndexedDB persistence succeeds) */}
       {justSavedToast && (

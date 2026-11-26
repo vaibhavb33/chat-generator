@@ -342,9 +342,19 @@ export function PlatformRendererHost({
             size="sm"
             variant={ui.previewMode || !ui.editorOpen ? 'gradient' : 'outline'}
             data-testid="preview-edit-button"
-            onClick={ui.previewMode ? handleOpenEdit : () => setEditorOpen(false)}
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                handleOpenEdit();
+                return;
+              }
+              if (ui.previewMode || !ui.editorOpen) {
+                handleOpenEdit();
+              } else {
+                setEditorOpen(false);
+              }
+            }}
           >
-            {ui.previewMode ? (
+            {ui.previewMode || !ui.editorOpen ? (
               <>
                 <Pencil className="h-3.5 w-3.5" />
                 <span>Edit</span>

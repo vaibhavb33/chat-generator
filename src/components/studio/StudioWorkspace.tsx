@@ -165,7 +165,7 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
   const showDesktopSidebars = ui.editorOpen && !ui.previewMode;
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 pb-20 dark:bg-slate-950">
+    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950">
       <StudioTopBar
         onOpenExport={() => setExportModalOpen(true)}
         onOpenTemplates={() => setTemplatesModalOpen(true)}
@@ -244,7 +244,7 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
         <section
           ref={mobilePanelsRef}
           aria-label="Mobile editing panels"
-          className="border-t border-slate-200 bg-white pb-6 lg:hidden dark:border-slate-800 dark:bg-slate-950"
+          className="border-t border-slate-200 bg-white pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden dark:border-slate-800 dark:bg-slate-950"
         >
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-800">
             <div className="flex items-center gap-1.5">

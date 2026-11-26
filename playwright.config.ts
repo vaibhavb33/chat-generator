@@ -31,6 +31,7 @@ export default defineConfig({
     {
       name: 'firefox',
       testMatch: [
+        '**/preview-edit-and-footer.spec.ts',
         '**/master-redesign-qa.spec.ts',
         '**/audit-security-perf.spec.ts',
         '**/responsive-and-flows.spec.ts',
@@ -53,6 +54,7 @@ export default defineConfig({
     {
       name: 'webkit',
       testMatch: [
+        '**/preview-edit-and-footer.spec.ts',
         '**/master-redesign-qa.spec.ts',
         '**/audit-security-perf.spec.ts',
         '**/responsive-and-flows.spec.ts',
