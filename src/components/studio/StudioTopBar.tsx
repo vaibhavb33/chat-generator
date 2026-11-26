@@ -110,13 +110,13 @@ export function StudioTopBar({
             className={cn(
               'hidden items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium 2xl:inline-flex',
               saveStatus === 'saved' &&
-                'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300',
+              'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300',
               saveStatus === 'unsaved' &&
-                'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300',
+              'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300',
               saveStatus === 'saving' &&
-                'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300',
+              'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300',
               saveStatus === 'error' &&
-                'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300'
+              'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300'
             )}
           >
             {saveStatus === 'saved' && <CheckCircle2 className="h-3 w-3" />}

@@ -4,11 +4,13 @@ const TEST_PLATFORMS = [
   { id: 'whatsapp-chat', route: '/whatsapp-chat-generator', testId: 'renderer-whatsapp-chat' },
   { id: 'whatsapp-group-chat', route: '/whatsapp-group-chat-generator', testId: 'renderer-whatsapp-group-chat' },
   { id: 'instagram-dm', route: '/instagram-dm-generator', testId: 'renderer-instagram-dm' },
+  { id: 'instagram-story', route: '/instagram-story-generator', testId: 'renderer-instagram-story' },
   { id: 'instagram-post', route: '/instagram-post-generator', testId: 'renderer-instagram-post' },
-  { id: 'telegram-chat', route: '/telegram-chat-generator', testId: 'renderer-telegram-chat' },
   { id: 'imessage', route: '/imessage-generator', testId: 'renderer-imessage' },
   { id: 'android-messages', route: '/android-message-generator', testId: 'renderer-android-messages' },
+  { id: 'telegram-chat', route: '/telegram-chat-generator', testId: 'renderer-telegram-chat' },
   { id: 'discord-chat', route: '/discord-chat-generator', testId: 'renderer-discord-chat' },
+  { id: 'fake-call-screen', route: '/fake-call-generator', testId: 'renderer-fake-call-screen' },
 ] as const;
 
 const SCREEN_WIDTHS = [360, 375, 390, 430, 768, 1024, 1440, 1920] as const;
@@ -187,20 +189,30 @@ test.describe('Phase 10 Master Acceptance QA: Header, Full-Screen Previews, Stic
   });
 
   for (const plat of TEST_PLATFORMS) {
-    test(`device & appearance matrix renders cleanly for ${plat.id}`, async ({
+    test(`device & appearance matrix (all 4 combinations) renders cleanly for ${plat.id}`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto(plat.route, { waitUntil: 'networkidle' });
       await expect(page.getByTestId(plat.testId)).toBeVisible();
 
-      await page.getByTestId('device-option-iphone').click();
-      await page.getByTestId('appearance-option-dark').click();
-      await expect(page.getByTestId(plat.testId)).toBeVisible();
+      const combos = [
+        { device: 'iphone', appearance: 'dark', statusId: 'status-bar-iphone', bottomId: 'ios-home-indicator' },
+        { device: 'iphone', appearance: 'light', statusId: 'status-bar-iphone', bottomId: 'ios-home-indicator' },
+        { device: 'android', appearance: 'dark', statusId: 'status-bar-android', bottomId: 'android-gesture-bar' },
+        { device: 'android', appearance: 'light', statusId: 'status-bar-android', bottomId: 'android-gesture-bar' },
+      ] as const;
 
-      await page.getByTestId('device-option-android').click();
-      await page.getByTestId('appearance-option-light').click();
-      await expect(page.getByTestId(plat.testId)).toBeVisible();
+      for (const combo of combos) {
+        await page.getByTestId(`device-option-${combo.device}`).click();
+        await page.getByTestId(`appearance-option-${combo.appearance}`).click();
+
+        await expect(page.getByTestId(`device-option-${combo.device}`)).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.getByTestId(`appearance-option-${combo.appearance}`)).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.getByTestId(plat.testId)).toBeVisible();
+        await expect(page.getByTestId(combo.statusId)).toBeVisible();
+        await expect(page.getByTestId(combo.bottomId)).toBeVisible();
+      }
     });
   }
 

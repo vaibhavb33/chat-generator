@@ -68,10 +68,12 @@ export function FakeCallScreenRenderer({
   const isActive = call?.direction === 'active';
   const isMissed = call?.direction === 'missed';
 
-  const isAndroid =
-    call?.deviceMode === 'android' ||
-    theme.osVariant === 'android' ||
-    call?.callPlatform === 'android-phone';
+  const isAndroid = theme.deviceType
+    ? theme.deviceType === 'android'
+    : call?.deviceMode === 'android' ||
+      theme.osVariant === 'android' ||
+      call?.callPlatform === 'android-phone';
+  const isLightMode = theme.colorScheme === 'light';
 
   const isWhatsApp =
     call?.callPlatform === 'whatsapp-voice' || call?.callPlatform === 'whatsapp-video';
@@ -87,12 +89,16 @@ export function FakeCallScreenRenderer({
   return (
     <div
       data-testid="renderer-fake-call-screen"
+      data-device-type={isAndroid ? 'android' : 'iphone'}
       className={cn(
-        'relative flex min-h-[640px] flex-col justify-between overflow-hidden rounded-3xl text-white select-none transition-colors shadow-2xl',
-        bgStyle === 'whatsapp-emerald' && 'bg-gradient-to-b from-[#0B141A] via-[#132A24] to-[#0B141A]',
-        bgStyle === 'dark-gradient' && 'bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950',
-        bgStyle === 'solid-slate' && 'bg-slate-950',
-        bgStyle === 'blur-avatar' && 'bg-slate-950'
+        'relative flex min-h-[680px] flex-1 flex-col justify-between overflow-hidden select-none transition-colors',
+        isLightMode && (bgStyle === 'dark-gradient' || bgStyle === 'solid-slate')
+          ? 'bg-gradient-to-b from-slate-100 via-white to-slate-200 text-slate-950'
+          : 'text-white',
+        !isLightMode && bgStyle === 'dark-gradient' && 'bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950',
+        !isLightMode && bgStyle === 'solid-slate' && 'bg-slate-950',
+        bgStyle === 'whatsapp-emerald' && 'bg-gradient-to-b from-[#0B141A] via-[#132A24] to-[#0B141A] text-white',
+        bgStyle === 'blur-avatar' && 'bg-slate-950 text-white'
       )}
       style={
         bgStyle === 'custom-image' && call?.customBackgroundUrl
@@ -111,14 +117,21 @@ export function FakeCallScreenRenderer({
           style={{ backgroundImage: `url(${caller.avatarDataUrl})` }}
         />
       )}
-      <div className="absolute inset-0 z-0 bg-black/35 pointer-events-none" />
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-0 z-0',
+          isLightMode && (bgStyle === 'dark-gradient' || bgStyle === 'solid-slate')
+            ? 'bg-transparent'
+            : 'bg-black/35'
+        )}
+      />
 
       {/* Top Header & Status Bar */}
       <div className="relative z-10 w-full">
         <StatusBar
           statusBar={theme.statusBar}
           osVariant={isAndroid ? 'android' : 'ios'}
-          darkBg
+          darkBg={!(isLightMode && (bgStyle === 'dark-gradient' || bgStyle === 'solid-slate'))}
         />
 
         {/* WhatsApp Encrypted Call Header */}

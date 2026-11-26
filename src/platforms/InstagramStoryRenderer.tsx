@@ -347,13 +347,17 @@ export function InstagramStoryRenderer({
     );
   };
 
+  const isAndroid = theme.deviceType === 'android' || theme.osVariant === 'android';
+  const darkStoryChrome = theme.colorScheme !== 'light';
+
   return (
     <div
       ref={containerRef}
       data-testid="renderer-instagram-story"
+      data-device-type={isAndroid ? 'android' : 'iphone'}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className="relative flex aspect-[9/16] w-full min-h-[640px] max-w-[420px] mx-auto flex-col justify-between overflow-hidden rounded-[32px] text-white select-none shadow-2xl"
+      className="relative flex aspect-[9/16] w-full min-h-[680px] flex-1 flex-col justify-between overflow-hidden text-white select-none"
       style={{
         background:
           activeSlide?.backgroundCss ||
@@ -370,8 +374,12 @@ export function InstagramStoryRenderer({
       )}
 
       {/* TOP HEADER & NAVIGATION */}
-      <div className="relative z-30 pt-1">
-        <StatusBar statusBar={theme.statusBar} osVariant={theme.osVariant} darkBg />
+      <div className="relative z-30 pt-0.5">
+        <StatusBar
+          statusBar={theme.statusBar}
+          osVariant={isAndroid ? 'android' : 'ios'}
+          darkBg={darkStoryChrome}
+        />
 
         {/* Progress Bars (Segmented by slide) */}
         <div className="flex gap-1.5 px-3 pt-2">

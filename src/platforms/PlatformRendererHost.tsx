@@ -389,7 +389,7 @@ export function PlatformRendererHost({
             deviceType={activeDevice}
             osVariant={activeDevice === 'android' ? 'android' : 'ios'}
             darkBg={darkBg}
-            hideBottomIndicator={isDiscordDesktop || project.platformId === 'fake-call-screen'}
+            hideBottomIndicator={isDiscordDesktop}
             safetyBadge={project.theme.safetyBadge}
           >
             {renderPlatform()}
