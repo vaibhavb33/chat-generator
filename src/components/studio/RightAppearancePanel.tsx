@@ -30,6 +30,8 @@ export function RightAppearancePanel({
   const setDeviceType = useStudioStore((s) => s.setDeviceType);
   const setDeviceFrame = useStudioStore((s) => s.setDeviceFrame);
   const setSafetyBadge = useStudioStore((s) => s.setSafetyBadge);
+  const previewZoom = useStudioStore((s) => s.ui.previewZoom);
+  const setPreviewZoom = useStudioStore((s) => s.setPreviewZoom);
   const [wallpaperError, setWallpaperError] = useState<string | null>(null);
 
   const conv = getActiveConversation(project);
@@ -343,6 +345,31 @@ export function RightAppearancePanel({
             <option value="none">Edge-to-Edge Screen Only</option>
           </select>
         </label>
+
+        <div className="space-y-1.5 rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-slate-700 dark:text-slate-300">
+              Content Zoom (UI Only)
+            </span>
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              {Math.round(previewZoom * 100)}%
+            </span>
+          </div>
+          <input
+            type="range"
+            aria-label="Content zoom percentage"
+            data-testid="right-panel-zoom-slider"
+            min={100}
+            max={130}
+            step={5}
+            value={Math.round(Math.max(100, Math.min(130, previewZoom * 100)))}
+            onChange={(e) => setPreviewZoom(Number(e.target.value) / 100)}
+            className="w-full accent-indigo-600"
+          />
+          <p className="text-[10px] text-slate-500">
+            Resizes live preview UI (100%–130%). Export resolution is controlled separately in Download.
+          </p>
+        </div>
       </section>
 
       {/* Header, Network & Battery Settings */}

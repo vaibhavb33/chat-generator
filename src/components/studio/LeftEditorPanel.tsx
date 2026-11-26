@@ -13,7 +13,6 @@ import {
   Sparkles,
   Trash2,
   UserPlus,
-  Users,
   Wand2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,8 @@ import { useBillingStore } from '@/core/billing/entitlements';
 import { GENERATOR_MAP } from '@/core/registry/generators';
 import { validateImageFileUpload } from '@/core/security/validation';
 import { getActiveConversation, useStudioStore } from '@/core/store/useStudioStore';
+import { STARTER_TEMPLATES } from '@/core/engine/seedData';
+import { BUILTIN_TEMPLATES } from '@/core/engine/templateLibrary';
 import { WhatsAppGroupEditor } from '@/components/studio/WhatsAppGroupEditor';
 import { InstagramDmEditor } from '@/components/studio/InstagramDmEditor';
 import { InstagramStoryEditor } from '@/components/studio/InstagramStoryEditor';
@@ -59,6 +60,11 @@ export function LeftEditorPanel({
   const updateStorySlide = useStudioStore((s) => s.updateStorySlide);
   const setActiveStorySlide = useStudioStore((s) => s.setActiveStorySlide);
   const updateCallMeta = useStudioStore((s) => s.updateCallMeta);
+  const updateHeaderState = useStudioStore((s) => s.updateHeaderState);
+  const setTypingPreview = useStudioStore((s) => s.setTypingPreview);
+  const setTimelineOpen = useStudioStore((s) => s.setTimelineOpen);
+  const setTimelineDelayMs = useStudioStore((s) => s.setTimelineDelayMs);
+  const applyTemplate = useStudioStore((s) => s.applyTemplate);
   const setActiveTab = useStudioStore((s) => s.setActiveTab);
   const openUpgradeModal = useBillingStore((s) => s.openUpgradeModal);
   const hasFeatureAccess = useBillingStore((s) => s.hasFeatureAccess);
@@ -248,13 +254,22 @@ export function LeftEditorPanel({
   };
 
   const activeTabValue =
-    ui.activeTab === 'participants' ? 'participants' : 'messages';
+    ui.activeTab === 'contact' ||
+    ui.activeTab === 'participants' ||
+    ui.activeTab === 'media' ||
+    ui.activeTab === 'templates' ||
+    ui.activeTab === 'animation'
+      ? ui.activeTab
+      : 'messages';
+
+  const primaryContact =
+    project.cast.find((p) => p.id !== conv.selfParticipantId) ?? project.cast[0];
 
   return (
     <div className="flex h-full flex-col">
       <Tabs
         value={activeTabValue}
-        onValueChange={(v) => setActiveTab(v as 'messages' | 'participants')}
+        onValueChange={(v) => setActiveTab(v as typeof ui.activeTab)}
         className="flex h-full flex-col"
       >
         <div className="border-b border-slate-200 px-3 py-2.5 dark:border-slate-800">
@@ -266,19 +281,30 @@ export function LeftEditorPanel({
               {manifest?.editorBadge ?? manifest?.name ?? 'Platform Editor'}
             </span>
           </div>
-          <TabsList className="w-full">
-            <TabsTrigger value="messages">
+          <TabsList className="flex w-full flex-wrap gap-1 h-auto p-1">
+            <TabsTrigger value="contact" data-testid="tab-contact-info" className="text-[11px] px-2 py-1">
+              Contact Info
+            </TabsTrigger>
+            <TabsTrigger value="messages" data-testid="tab-messages" className="text-[11px] px-2 py-1">
               {project.archetype === 'ephemeral_story'
-                ? 'Story Slides'
+                ? 'Story'
                 : project.archetype === 'social_post'
-                  ? 'Post & Caption'
+                  ? 'Post'
                   : project.archetype === 'call_screen'
-                    ? 'Call Controls'
+                    ? 'Call'
                     : 'Messages'}
             </TabsTrigger>
-            <TabsTrigger value="participants">
-              <Users className="mr-1.5 h-3.5 w-3.5" />
+            <TabsTrigger value="participants" data-testid="tab-participants" className="text-[11px] px-2 py-1">
               People ({project.cast.length})
+            </TabsTrigger>
+            <TabsTrigger value="media" data-testid="tab-media" className="text-[11px] px-2 py-1">
+              Media
+            </TabsTrigger>
+            <TabsTrigger value="templates" data-testid="tab-templates" className="text-[11px] px-2 py-1">
+              Templates
+            </TabsTrigger>
+            <TabsTrigger value="animation" data-testid="tab-animation" className="text-[11px] px-2 py-1">
+              Animation
             </TabsTrigger>
           </TabsList>
           {uploadError && (
@@ -291,6 +317,114 @@ export function LeftEditorPanel({
             </div>
           )}
         </div>
+
+        {/* TAB 0: CONTACT INFO */}
+        <TabsContent value="contact" className="flex-1 space-y-4 overflow-y-auto p-3.5" data-testid="contact-info-panel">
+          {primaryContact && (
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="flex items-center gap-3">
+                {primaryContact.avatarDataUrl ? (
+                  <img
+                    src={primaryContact.avatarDataUrl}
+                    alt={primaryContact.displayName}
+                    className="h-12 w-12 rounded-full object-cover ring-2 ring-indigo-500/30"
+                  />
+                ) : (
+                  <span
+                    className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"
+                    style={{ backgroundColor: primaryContact.avatarFallbackColor }}
+                  >
+                    {primaryContact.displayName.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                    {primaryContact.displayName}
+                  </p>
+                  <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    <Camera className="h-3.5 w-3.5" />
+                    Upload Photo
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      data-testid="contact-avatar-upload"
+                      className="hidden"
+                      onChange={(e) => void handleParticipantAvatarUpload(primaryContact, e)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <label className="block space-y-1 text-xs">
+                <span className="font-medium text-slate-600 dark:text-slate-400">Contact Name</span>
+                <Input
+                  data-testid="contact-name-input"
+                  value={primaryContact.displayName}
+                  onChange={(e) =>
+                    upsertParticipant({ ...primaryContact, displayName: e.target.value })
+                  }
+                  className="h-8 text-xs"
+                />
+              </label>
+
+              <label className="block space-y-1 text-xs">
+                <span className="font-medium text-slate-600 dark:text-slate-400">Phone Number / Handle</span>
+                <Input
+                  data-testid="contact-phone-input"
+                  value={primaryContact.phoneOrEmail ?? primaryContact.handle ?? ''}
+                  placeholder="+1 (415) 555-0194"
+                  onChange={(e) =>
+                    upsertParticipant({
+                      ...primaryContact,
+                      phoneOrEmail: e.target.value,
+                      handle: e.target.value,
+                    })
+                  }
+                  className="h-8 text-xs"
+                />
+              </label>
+
+              <div className="space-y-1.5 text-xs">
+                <label className="block space-y-1">
+                  <span className="font-medium text-slate-600 dark:text-slate-400">
+                    Online Status / Last Seen
+                  </span>
+                  <Input
+                    data-testid="contact-status-input"
+                    value={conv.headerState.statusText ?? ''}
+                    onChange={(e) => updateHeaderState({ statusText: e.target.value })}
+                    placeholder="online"
+                    className="h-8 text-xs"
+                  />
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {['online', 'last seen today at 9:41 AM', 'typing...', 'recording audio...'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => updateHeaderState({ statusText: preset })}
+                      className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs dark:border-slate-700 dark:bg-slate-900">
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  Show Typing Bubble in Chat
+                </span>
+                <input
+                  type="checkbox"
+                  data-testid="contact-typing-toggle"
+                  checked={ui.isTypingPreview}
+                  onChange={(e) => setTypingPreview(e.target.checked)}
+                />
+              </label>
+            </div>
+          )}
+        </TabsContent>
 
         {/* TAB 1: CONTENT / MESSAGES */}
         <TabsContent value="messages" className="flex-1 space-y-4 overflow-y-auto p-3.5">
@@ -730,6 +864,7 @@ export function LeftEditorPanel({
                   return (
                     <div
                       key={m.id}
+                      data-testid={`message-row-${m.id}`}
                       className={cn(
                         'rounded-xl border p-2.5 text-xs transition-colors',
                         ui.selectedMessageId === m.id
@@ -992,6 +1127,71 @@ export function LeftEditorPanel({
                 </div>
               );
             })}
+          </div>
+        </TabsContent>
+        {/* TAB 3: MEDIA */}
+        <TabsContent value="media" className="flex-1 space-y-3 overflow-y-auto p-3.5" data-testid="media-panel">
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-4 text-center dark:border-slate-700 dark:bg-slate-900/50">
+            <ImagePlus className="mx-auto mb-2 h-6 w-6 text-indigo-500" />
+            <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+              Insert Photo Attachment
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              Adds an image message directly into the live preview.
+            </p>
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">
+              <ImagePlus className="h-3.5 w-3.5" />
+              Choose Image
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => void handleImageUpload(e)}
+              />
+            </label>
+          </div>
+        </TabsContent>
+
+        {/* TAB 4: TEMPLATES */}
+        <TabsContent value="templates" className="flex-1 space-y-2.5 overflow-y-auto p-3.5" data-testid="templates-panel">
+          {[...STARTER_TEMPLATES, ...BUILTIN_TEMPLATES].slice(0, 6).map((tpl) => (
+            <button
+              key={tpl.id}
+              type="button"
+              onClick={() => applyTemplate(tpl)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 text-left transition-colors hover:border-indigo-400 hover:bg-indigo-50/40 dark:border-slate-800 dark:bg-slate-900/50 cursor-pointer"
+            >
+              <p className="text-xs font-semibold text-slate-900 dark:text-white">{tpl.title}</p>
+              <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-2">{tpl.description}</p>
+            </button>
+          ))}
+        </TabsContent>
+
+        {/* TAB 5: ANIMATION */}
+        <TabsContent value="animation" className="flex-1 space-y-3 overflow-y-auto p-3.5" data-testid="animation-panel">
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/50">
+            <label className="flex items-center justify-between font-medium text-slate-800 dark:text-slate-200">
+              <span>Show Timeline Video Bar</span>
+              <input
+                type="checkbox"
+                checked={ui.isTimelineOpen}
+                onChange={(e) => setTimelineOpen(e.target.checked)}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="font-medium text-slate-600 dark:text-slate-400">
+                Message Pacing Delay (ms)
+              </span>
+              <Input
+                type="number"
+                min={300}
+                max={4000}
+                step={100}
+                value={project.timeline.defaultMessageDelayMs}
+                onChange={(e) => setTimelineDelayMs(Math.max(300, Number(e.target.value) || 900))}
+                className="h-8 text-xs"
+              />
+            </label>
           </div>
         </TabsContent>
       </Tabs>

@@ -115,6 +115,17 @@ export function ExportModal({
         if (!exportRef.current) {
           throw new Error('Preview surface is not ready yet.');
         }
+        // Ensure latest state is rendered and clear selection rings before snapshot
+        const studioState = useStudioStore.getState();
+        if (!studioState.ui.livePreviewEnabled) {
+          studioState.forceUpdatePreview();
+          await new Promise((r) => setTimeout(r, 60));
+        }
+        if (studioState.ui.selectedElement || studioState.ui.selectedMessageId) {
+          studioState.setSelectedElement(null);
+          studioState.setSelectedMessageId(null);
+          await new Promise((r) => setTimeout(r, 40));
+        }
         const res = await exportMockupElement(
           exportRef.current,
           project.exportSettings,

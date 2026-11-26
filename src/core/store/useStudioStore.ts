@@ -34,11 +34,22 @@ import type { TemplateCategory } from '@/core/types';
 import { GENERATOR_MAP } from '@/core/registry/generators';
 
 export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
+export type PreviewSyncStatus = 'active' | 'updating' | 'updated' | 'paused';
+export type EditorLeftTab =
+  | 'contact'
+  | 'messages'
+  | 'participants'
+  | 'media'
+  | 'templates'
+  | 'animation'
+  | 'appearance'
+  | 'timeline';
 
 const MAX_HISTORY = 50;
 
 export interface StudioStore {
   project: Project;
+  renderedProject: Project;
   past: Project[];
   future: Project[];
   savedProjects: Project[];
@@ -52,10 +63,12 @@ export interface StudioStore {
   ui: {
     selectedMessageId: string | null;
     selectedElement: EditableElementSelection | null;
-    activeTab: 'messages' | 'participants' | 'appearance' | 'timeline';
+    activeTab: EditorLeftTab;
     mobileDrawerOpen: boolean;
     editorOpen: boolean;
     previewZoom: number;
+    livePreviewEnabled: boolean;
+    previewSyncStatus: PreviewSyncStatus;
     isTimelineOpen: boolean;
     isPlayingTimeline: boolean;
     timelineVisibleCount: number;
@@ -195,6 +208,9 @@ export interface StudioStore {
   setTimelineOpen: (open: boolean) => void;
   setPreviewMode: (preview: boolean) => void;
   setTypingPreview: (typing: boolean) => void;
+  setLivePreviewEnabled: (enabled: boolean) => void;
+  forceUpdatePreview: () => void;
+  markPreviewRendered: (version: number) => void;
   playTimeline: () => void;
   pauseTimeline: () => void;
   resetTimeline: () => void;
@@ -229,17 +245,25 @@ export function getActiveConversation(project: Project): Conversation {
 }
 
 export const useStudioStore = create<StudioStore>((set, get) => {
+  const initialSeed = createSeedProject('whatsapp-chat');
+
   const commitMutation = (mutator: (prev: Project) => Project) => {
-    const { project, past, mutationVersion } = get();
+    const { project, past, mutationVersion, ui } = get();
     const nextProject = mutator(project);
     const nextPast = [...past, project].slice(-MAX_HISTORY);
+    const nextVersion = mutationVersion + 1;
 
     set({
       project: nextProject,
+      renderedProject: ui.livePreviewEnabled ? nextProject : get().renderedProject,
       past: nextPast,
       future: [],
       saveStatus: 'unsaved',
-      mutationVersion: mutationVersion + 1,
+      mutationVersion: nextVersion,
+      ui: {
+        ...ui,
+        previewSyncStatus: ui.livePreviewEnabled ? 'updating' : 'paused',
+      },
     });
 
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
@@ -249,7 +273,8 @@ export const useStudioStore = create<StudioStore>((set, get) => {
   };
 
   return {
-    project: createSeedProject('whatsapp-chat'),
+    project: initialSeed,
+    renderedProject: initialSeed,
     past: [],
     future: [],
     savedProjects: [],
@@ -267,6 +292,8 @@ export const useStudioStore = create<StudioStore>((set, get) => {
       mobileDrawerOpen: false,
       editorOpen: true,
       previewZoom: 1,
+      livePreviewEnabled: true,
+      previewSyncStatus: 'active',
       isTimelineOpen: false,
       isPlayingTimeline: false,
       timelineVisibleCount: 999,
@@ -278,8 +305,10 @@ export const useStudioStore = create<StudioStore>((set, get) => {
       const startMutationVersion = get().mutationVersion;
       const startPlatformId = get().project.platformId;
       if (startPlatformId !== platformId) {
+        const nextSeed = createSeedProject(platformId);
         set({
-          project: createSeedProject(platformId),
+          project: nextSeed,
+          renderedProject: nextSeed,
           isHydrating: true,
           errorMessage: null,
           past: [],
@@ -311,6 +340,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
 
         set({
           project: initial,
+          renderedProject: initial,
           past: [],
           future: [],
           savedProjects: allSaved,
@@ -323,12 +353,14 @@ export const useStudioStore = create<StudioStore>((set, get) => {
             selectedMessageId: null,
             timelineVisibleCount: 999,
             isPlayingTimeline: false,
+            previewSyncStatus: get().ui.livePreviewEnabled ? 'active' : 'paused',
           },
         });
       } catch (err) {
         const fallback = createSeedProject(platformId);
         set({
           project: fallback,
+          renderedProject: fallback,
           isHydrating: false,
           saveStatus: 'error',
           errorMessage:
@@ -440,6 +472,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
       const allSaved = await listSavedProjects();
       set({
         project: copy,
+        renderedProject: get().ui.livePreviewEnabled ? copy : get().renderedProject,
         past: [],
         future: [],
         savedProjects: allSaved,
@@ -456,6 +489,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
       await saveProjectToIndexedDb(found);
       set({
         project: found,
+        renderedProject: found,
         past: [],
         future: [],
         savedProjects: allSaved,
@@ -465,6 +499,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
           ...get().ui,
           selectedMessageId: null,
           timelineVisibleCount: 999,
+          previewSyncStatus: get().ui.livePreviewEnabled ? 'active' : 'paused',
         },
       });
     },
@@ -635,26 +670,38 @@ export const useStudioStore = create<StudioStore>((set, get) => {
     },
 
     undo: () => {
-      const { past, project, future } = get();
+      const { past, project, future, ui, mutationVersion } = get();
       if (past.length === 0) return;
       const previous = past[past.length - 1];
       set({
         project: previous,
+        renderedProject: ui.livePreviewEnabled ? previous : get().renderedProject,
         past: past.slice(0, -1),
         future: [project, ...future].slice(0, MAX_HISTORY),
         saveStatus: 'unsaved',
+        mutationVersion: mutationVersion + 1,
+        ui: {
+          ...ui,
+          previewSyncStatus: ui.livePreviewEnabled ? 'updating' : 'paused',
+        },
       });
     },
 
     redo: () => {
-      const { past, project, future } = get();
+      const { past, project, future, ui, mutationVersion } = get();
       if (future.length === 0) return;
       const next = future[0];
       set({
         project: next,
+        renderedProject: ui.livePreviewEnabled ? next : get().renderedProject,
         past: [...past, project].slice(-MAX_HISTORY),
         future: future.slice(1),
         saveStatus: 'unsaved',
+        mutationVersion: mutationVersion + 1,
+        ui: {
+          ...ui,
+          previewSyncStatus: ui.livePreviewEnabled ? 'updating' : 'paused',
+        },
       });
     },
 
@@ -1761,7 +1808,7 @@ export const useStudioStore = create<StudioStore>((set, get) => {
               : s.ui.selectedMessageId,
           activeTab:
             selectedElement?.kind === 'avatar' || selectedElement?.kind === 'contact_name'
-              ? 'participants'
+              ? 'contact'
               : selectedElement?.kind === 'wallpaper' || selectedElement?.kind === 'status_bar'
                 ? 'appearance'
                 : selectedElement?.kind === 'message' ||
@@ -1794,6 +1841,34 @@ export const useStudioStore = create<StudioStore>((set, get) => {
       set((s) => ({ ui: { ...s.ui, previewMode } })),
     setTypingPreview: (isTypingPreview) =>
       set((s) => ({ ui: { ...s.ui, isTypingPreview } })),
+    setLivePreviewEnabled: (livePreviewEnabled) =>
+      set((s) => ({
+        renderedProject: livePreviewEnabled ? s.project : s.renderedProject,
+        ui: {
+          ...s.ui,
+          livePreviewEnabled,
+          previewSyncStatus: livePreviewEnabled ? 'updating' : 'paused',
+        },
+      })),
+    forceUpdatePreview: () =>
+      set((s) => ({
+        renderedProject: s.project,
+        ui: {
+          ...s.ui,
+          previewSyncStatus: 'updating',
+        },
+      })),
+    markPreviewRendered: (version) =>
+      set((s) => {
+        if (s.mutationVersion !== version) return s;
+        if (s.ui.previewSyncStatus !== 'updating') return s;
+        return {
+          ui: {
+            ...s.ui,
+            previewSyncStatus: 'updated',
+          },
+        };
+      }),
     playTimeline: () => {
       const conv = getActiveConversation(get().project);
       const currentCount = get().ui.timelineVisibleCount;

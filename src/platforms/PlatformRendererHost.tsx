@@ -1,13 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Check,
   Eye,
   MessageSquarePlus,
+  Pause,
   Pencil,
+  Play,
+  RefreshCw,
   RotateCcw,
   Smartphone,
+  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -36,7 +40,8 @@ export function PlatformRendererHost({
   exportRef: React.RefObject<HTMLDivElement | null>;
   onRequestOpenEdit?: () => void;
 }) {
-  const project = useStudioStore((s) => s.project);
+  const project = useStudioStore((s) => s.renderedProject);
+  const mutationVersion = useStudioStore((s) => s.mutationVersion);
   const ui = useStudioStore((s) => s.ui);
   const setSelectedMessageId = useStudioStore((s) => s.setSelectedMessageId);
   const setSelectedElement = useStudioStore((s) => s.setSelectedElement);
@@ -44,11 +49,22 @@ export function PlatformRendererHost({
   const setPreviewZoom = useStudioStore((s) => s.setPreviewZoom);
   const setEditorOpen = useStudioStore((s) => s.setEditorOpen);
   const setDeviceFrame = useStudioStore((s) => s.setDeviceFrame);
+  const setLivePreviewEnabled = useStudioStore((s) => s.setLivePreviewEnabled);
+  const forceUpdatePreview = useStudioStore((s) => s.forceUpdatePreview);
+  const markPreviewRendered = useStudioStore((s) => s.markPreviewRendered);
   const duplicateMessage = useStudioStore((s) => s.duplicateMessage);
   const switchMessageSender = useStudioStore((s) => s.switchMessageSender);
   const deleteMessage = useStudioStore((s) => s.deleteMessage);
   const updateCallMeta = useStudioStore((s) => s.updateCallMeta);
   const resetToSeed = useStudioStore((s) => s.resetToSeed);
+
+  useEffect(() => {
+    if (ui.previewSyncStatus !== 'updating') return;
+    const raf = requestAnimationFrame(() => {
+      markPreviewRendered(mutationVersion);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [project, mutationVersion, ui.previewSyncStatus, markPreviewRendered]);
 
   const conversation = getActiveConversation(project);
   const participantsById = Object.fromEntries(project.cast.map((p) => [p.id, p]));
@@ -284,12 +300,91 @@ export function PlatformRendererHost({
             >
               <Check className="h-3 w-3" />
               Editing: {ui.selectedElement.label}
+              <button
+                type="button"
+                data-testid="exit-preview-selection-btn"
+                aria-label="Exit selection mode"
+                onClick={() => {
+                  setSelectedElement(null);
+                  setSelectedMessageId(null);
+                }}
+                className="ml-0.5 rounded-full p-0.5 hover:bg-indigo-200/70 dark:hover:bg-indigo-800/70 cursor-pointer"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {/* Desktop Zoom Controls */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Live Preview Controls & Sync Status */}
+          <button
+            type="button"
+            data-testid="live-preview-toggle"
+            aria-pressed={ui.livePreviewEnabled}
+            onClick={() => setLivePreviewEnabled(!ui.livePreviewEnabled)}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors cursor-pointer',
+              ui.livePreviewEnabled
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-300'
+            )}
+          >
+            {ui.livePreviewEnabled ? (
+              <Pause className="h-3 w-3" />
+            ) : (
+              <Play className="h-3 w-3" />
+            )}
+            <span>Live Preview: {ui.livePreviewEnabled ? 'ON' : 'PAUSED'}</span>
+          </button>
+
+          <span
+            data-testid="live-preview-status"
+            role="status"
+            aria-live="polite"
+            className={cn(
+              'hidden items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium sm:inline-flex',
+              ui.previewSyncStatus === 'paused'
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                : ui.previewSyncStatus === 'updating'
+                  ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
+                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+            )}
+          >
+            <span
+              className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                ui.previewSyncStatus === 'paused'
+                  ? 'bg-amber-500'
+                  : ui.previewSyncStatus === 'updating'
+                    ? 'bg-indigo-500 animate-pulse'
+                    : 'bg-emerald-500'
+              )}
+            />
+            {ui.previewSyncStatus === 'paused'
+              ? 'Preview paused'
+              : ui.previewSyncStatus === 'updating'
+                ? 'Updating preview'
+                : ui.previewSyncStatus === 'updated'
+                  ? 'Preview updated'
+                  : 'Live preview active'}
+          </span>
+
+          {!ui.livePreviewEnabled && (
+            <Button
+              type="button"
+              size="sm"
+              variant="gradient"
+              data-testid="update-preview-btn"
+              onClick={forceUpdatePreview}
+              className="h-7 px-2.5 text-[11px]"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Update Preview
+            </Button>
+          )}
+
+          {/* Desktop Zoom Controls (80% - 130%) */}
           <div className="hidden items-center gap-0.5 rounded-lg border border-slate-200 px-1 py-0.5 sm:inline-flex dark:border-slate-700">
             <button
               type="button"
@@ -299,13 +394,16 @@ export function PlatformRendererHost({
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
-            <span className="min-w-[34px] text-center text-[10px] font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+            <span
+              data-testid="preview-zoom-value"
+              className="min-w-[34px] text-center text-[10px] font-semibold tabular-nums text-slate-700 dark:text-slate-300"
+            >
               {Math.round(ui.previewZoom * 100)}%
             </span>
             <button
               type="button"
               aria-label="Zoom in preview"
-              onClick={() => setPreviewZoom(Math.min(1.15, Number((ui.previewZoom + 0.1).toFixed(2))))}
+              onClick={() => setPreviewZoom(Math.min(1.3, Number((ui.previewZoom + 0.1).toFixed(2))))}
               className="rounded p-0.5 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 cursor-pointer"
             >
               <ZoomIn className="h-3.5 w-3.5" />

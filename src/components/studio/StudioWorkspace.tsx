@@ -247,15 +247,29 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
           className="border-t border-slate-200 bg-white pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden dark:border-slate-800 dark:bg-slate-950"
         >
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-800">
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1">
               <Button
                 type="button"
                 size="sm"
-                variant={mobilePanelMode === 'content' ? 'default' : 'ghost'}
-                onClick={() => setMobilePanelMode('content')}
+                variant={mobilePanelMode === 'content' && useStudioStore.getState().ui.activeTab === 'contact' ? 'default' : 'ghost'}
+                onClick={() => {
+                  useStudioStore.getState().setActiveTab('contact');
+                  setMobilePanelMode('content');
+                }}
+              >
+                Contact Info
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={mobilePanelMode === 'content' && useStudioStore.getState().ui.activeTab !== 'contact' ? 'default' : 'ghost'}
+                onClick={() => {
+                  useStudioStore.getState().setActiveTab('messages');
+                  setMobilePanelMode('content');
+                }}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Edit Content
+                Messages
               </Button>
               <Button
                 type="button"
@@ -264,7 +278,15 @@ export function StudioWorkspace({ platformId }: { platformId: string }) {
                 onClick={() => setMobilePanelMode('style')}
               >
                 <Palette className="h-3.5 w-3.5" />
-                Style &amp; Frame
+                Appearance
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setExportModalOpen(true)}
+              >
+                Settings
               </Button>
             </div>
             <Button
