@@ -580,6 +580,73 @@ function buildSeedMessages(
     ];
   }
 
+  if (platformId === 'android-messages') {
+    return [
+      {
+        id: 'msg_am_date',
+        senderId: 'system',
+        type: 'date_separator',
+        text: 'Today • 10:00 AM',
+        timestampLabel: '',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'none' },
+      },
+      {
+        id: 'msg_am_1',
+        senderId: otherId,
+        type: 'text',
+        text: 'Hey! Are you using the new Google Messages RCS features?',
+        timestampLabel: '10:00 AM',
+        attachments: [],
+        reactions: [{ emoji: '👍', participantIds: [selfId], count: 1 }],
+        readReceipt: { status: 'read' },
+      },
+      {
+        id: 'msg_am_2',
+        senderId: selfId,
+        type: 'text',
+        text: 'Yes! The Material You dynamic theme and high-res photo sharing work so smoothly 🚀',
+        timestampLabel: '10:02 AM',
+        attachments: [],
+        reactions: [],
+        readReceipt: { status: 'read', readAtLabel: '10:02 AM' },
+      },
+      {
+        id: 'msg_am_3',
+        senderId: otherId,
+        type: 'voice_note',
+        text: 'Audio message (0:12)',
+        timestampLabel: '10:03 AM',
+        attachments: [
+          {
+            id: 'att_vn_am',
+            kind: 'voice_note',
+            durationSeconds: 12,
+            voiceNoteMeta: {
+              waveformPeaks: [0.3, 0.6, 0.8, 0.5, 0.9, 0.7, 0.4, 0.65, 0.85, 0.5, 0.3, 0.7, 0.4],
+              playbackSpeed: '1x',
+              isListened: false,
+            },
+          },
+        ],
+        reactions: [],
+        readReceipt: { status: 'read' },
+      },
+      {
+        id: 'msg_am_4',
+        senderId: selfId,
+        type: 'text',
+        text: 'Just sent the project proposal over to the team!',
+        timestampLabel: '10:05 AM',
+        replyToMessageId: 'msg_am_1',
+        attachments: [],
+        reactions: [{ emoji: '❤️', participantIds: [otherId], count: 1 }],
+        readReceipt: { status: 'delivered' },
+      },
+    ];
+  }
+
   if (platformId === 'whatsapp-group-chat' || platformId === 'discord-chat') {
     return [
       {

@@ -14,7 +14,6 @@ test.describe('TASK 07 Acceptance: iMessage Generator (/imessage-generator)', ()
 
     const surface = page.getByTestId('mockup-export-surface');
     const desktopLeft = page.locator('aside').first();
-    const desktopRight = page.locator('aside').nth(1);
 
     // 1. Dedicated editor badge and container
     await expect(desktopLeft.getByTestId('imessage-dedicated-editor')).toBeVisible();

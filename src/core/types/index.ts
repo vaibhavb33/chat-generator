@@ -288,6 +288,10 @@ export interface Conversation {
     backButtonLabel?: string;
     serviceSubtitle?: string;
     showFaceTimeAction?: boolean;
+    androidProfile?: 'google_messages' | 'samsung_oneui' | 'classic_sms';
+    simSlotLabel?: string;
+    isRcsMode?: boolean;
+    showSearchAction?: boolean;
   };
   storyMeta?: {
     slides: StorySlide[];
